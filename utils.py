@@ -27,9 +27,15 @@ def rotate_point(point, center, angle):
 # Convert sprite into set of lines that set the borders
 def sprite_to_lines(sprite_rect, angle):
     center = sprite_rect.center
-    top_left = rotate_point(sprite_rect.topleft, center, angle),
-    top_right = rotate_point(sprite_rect.topright, center, angle),
-    bottom_right = rotate_point(sprite_rect.bottomright, center, angle),
-    bottom_left = rotate_point(sprite_rect.bottomleft, center, angle)
+    # top_left = rotate_point(sprite_rect.topleft, center, angle),
+    # top_right = rotate_point(sprite_rect.topright, center, angle),
+    # bottom_right = rotate_point(sprite_rect.bottomright, center, angle),
+    # bottom_left = rotate_point(sprite_rect.bottomleft, center, angle)
+    top_left = sprite_rect.topleft
+    top_right = sprite_rect.topright
+    bottom_left = sprite_rect.bottomleft
+    bottom_right = sprite_rect.bottomright
 
-    return [(top_left, top_right), (top_right, bottom_right), (bottom_right, bottom_left), (bottom_left, top_left)]
+
+    return [top_left, top_right, bottom_left, bottom_right]
+    # return [(top_left, top_right), (top_right, bottom_right), (bottom_right, bottom_left), (bottom_left, top_left)]
