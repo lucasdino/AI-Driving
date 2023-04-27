@@ -1,7 +1,7 @@
 import pygame
 import sys
 from utils import load_sprite, shrink_sprite
-from models import Racecar
+from models import Racecar, Racetrack
 
 
 class Driver:
@@ -12,6 +12,7 @@ class Driver:
         self.screen = pygame.display.set_mode((800, 600))
         self.background = load_sprite("RacetrackSprite", False)
         self.racecar = Racecar((58,336), shrink_sprite(load_sprite("RacecarSprite"), 0.2), (0,0))
+        self.racetrack = Racetrack()
 
 
 
@@ -45,10 +46,8 @@ class Driver:
         self.screen.blit(self.background, (0, 0))
         self.racecar.draw(self.screen)
 
-
-        if self.drawing_instance.start_point and self.drawing_instance.end_point:
-            pygame.draw.line(self.screen, (255, 0, 0), self.drawing_instance.start_point, self.drawing_instance.end_point, 3)
-
+        for line in self.racetrack.lines:
+            pygame.draw.line(self.screen, (255, 0, 0), line[0], line[1], 3)
 
         # print("Collides:", self.racecar.collides_with_rect(self.racecar2))
         pygame.display.flip()

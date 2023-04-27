@@ -1,4 +1,6 @@
 import pygame
+import csv
+import os
 from pygame.math import Vector2
 from utils import sprite_to_lines
 
@@ -44,8 +46,18 @@ class Racecar:
 
     def collides_with(self, other_line):
         pass
-        # for segment in self.line_segments:
-        #     if self.check_line_collision(segment, other_line):
-        #         return True
 
-        # return False
+
+class Racetrack:
+    def __init__(self):
+        self.lines = []         # Pull in tuples from CSV file
+        self._load_lines_from_csv()
+
+    def _load_lines_from_csv(self):
+        filename = os.path.join("assets", "racetrack_lines.csv")
+        with open(filename, "r", newline="") as csvfile:
+            csv_reader = csv.reader(csvfile)
+            for row in csv_reader:
+                line = [tuple(map(int, point.strip('()').split(', '))) for point in row]
+                self.lines.append(line)
+        return self.lines
