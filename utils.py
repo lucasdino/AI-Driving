@@ -25,17 +25,28 @@ def rotate_point(point, center, angle):
     return center[0] + x_new, center[1] + y_new
 
 # Convert sprite into set of lines that set the borders
-def sprite_to_lines(sprite_rect, angle):
-    center = sprite_rect.center
-    # top_left = rotate_point(sprite_rect.topleft, center, angle),
-    # top_right = rotate_point(sprite_rect.topright, center, angle),
-    # bottom_right = rotate_point(sprite_rect.bottomright, center, angle),
-    # bottom_left = rotate_point(sprite_rect.bottomleft, center, angle)
-    top_left = sprite_rect.topleft
-    top_right = sprite_rect.topright
-    bottom_left = sprite_rect.bottomleft
-    bottom_right = sprite_rect.bottomright
+def sprite_to_lines(sprite_rect, width, height, angle):
+    center = sprite_rect.center 
+    
+    # Calculate front left coordinates
+    fl_x = center[0] + (math.cos(math.radians(angle))*(height/2)) - (math.cos(math.radians(90-angle))*(width/2))
+    fl_y = center[1] + (math.sin(math.radians(angle))*(height/2)) + (math.sin(math.radians(90-angle))*(width/2))
+    front_left = (fl_x, fl_y)
+    
+    # Calculate front right coordinates
+    fr_x = center[0] + (math.cos(math.radians(angle))*(height/2)) + (math.cos(math.radians(90-angle))*(width/2))
+    fr_y = center[1] + (math.sin(math.radians(angle))*(height/2)) - (math.sin(math.radians(90-angle))*(width/2))
+    front_right = (fr_x, fr_y)
+    
+    # Calculate bottom right coordinates
+    br_x = center[0] - (math.cos(math.radians(angle))*(height/2)) + (math.cos(math.radians(90-angle))*(width/2))
+    br_y = center[1] - (math.sin(math.radians(angle))*(height/2)) - (math.sin(math.radians(90-angle))*(width/2))
+    bottom_right = (br_x, br_y)
+    
+    # Calculate bottom left coordinates
+    bl_x = center[0] - (math.cos(math.radians(angle))*(height/2)) - (math.cos(math.radians(90-angle))*(width/2))
+    bl_y = center[1] - (math.sin(math.radians(angle))*(height/2)) + (math.sin(math.radians(90-angle))*(width/2))
+    bottom_left = (bl_x, bl_y)
 
-
-    return [top_left, top_right, bottom_left, bottom_right]
-    # return [(top_left, top_right), (top_right, bottom_right), (bottom_right, bottom_left), (bottom_left, top_left)]
+    return [front_left, front_right, bottom_left, bottom_right]
+    # return [(front_left, front_right), (front_right, bottom_right), (bottom_right, bottom_left), (bottom_left, front_left)]

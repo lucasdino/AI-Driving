@@ -24,7 +24,7 @@ class Racecar:
         # Draw the racecar sprite
         rotated_sprite = pygame.transform.rotate(self.sprite, self.angle)
         rotated_sprite_rect = rotated_sprite.get_rect(center = self.position)
-        self.linesegments = sprite_to_lines(rotated_sprite_rect, self.angle)
+        self.linesegments = sprite_to_lines(rotated_sprite_rect, self.sprite_w, self.sprite_l, self.angle)
 
         for i in range(len(self.linesegments)):
             pygame.draw.circle(surface, (255,165, 0), self.linesegments[i], 3)
