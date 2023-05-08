@@ -18,7 +18,11 @@ class Driver:
 
         # Pull in clock and create a font object for displaying text on screen
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 36)
+        self.start_time = pygame.time.get_ticks()
+        self.font = pygame.font.Font(None, 30)
+
+        # Instantiate Score = 0
+        self.score = 0
 
 
     # Main game loop function which will call on other game loop classes
@@ -27,7 +31,7 @@ class Driver:
             self._handle_input()            # Accepts user inputs (like key changes)
             self._process_game_logic()      # Adjusts / acts on all game assets
             self._draw()                    # Re-renders screen
-            self.clock.tick(40)                  # Cap frame rate at 40fps
+            self.clock.tick(40)             # Cap frame rate at 40fps
 
 
     # Creates pygame instance
@@ -69,6 +73,10 @@ class Driver:
     def _process_game_logic(self):
         self.racecar.move()
 
+        # Check for collisions with the walls
+        for line in self.racetrack.lines:
+            if(self.racecar.check_line_collision(line)): print("Game Over!")
+
 
     # Class to re-render the screen
     def _draw(self):
@@ -80,8 +88,15 @@ class Driver:
 
         # Calculate frame rate, render text on screen, and draw frame rate text on next screen
         actual_frame_rate = int(self.clock.get_fps())
+        # Calculate the elapsed time
+        elapsed_time = (pygame.time.get_ticks() - self.start_time) // 1000
+
+         # Render the timer and score text
+        timer_text = font.render(f"Time: {elapsed_time}s", True, (255, 255, 255))
+        score_text = font.render(f"Score: {score}", True, (255, 255, 255))
         frame_rate_text = self.font.render(f"FPS: {actual_frame_rate}", True, (255, 255, 255))
         self.screen.blit(frame_rate_text, (670, 20))
+
 
         # print("Collides:", self.racecar.collides_with_rect(self.racecar2))
         pygame.display.flip()
