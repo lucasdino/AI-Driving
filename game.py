@@ -19,7 +19,7 @@ class Driver:
         # Pull in clock and create a font object for displaying text on screen
         self.clock = pygame.time.Clock()
         self.start_time = pygame.time.get_ticks()
-        self.font = pygame.font.Font(None, 30)
+        self.font = pygame.font.Font(None, 20)
 
         # Instantiate Score = 0
         self.score = 0
@@ -86,17 +86,29 @@ class Driver:
         for line in self.racetrack.lines:
             pygame.draw.line(self.screen, (255, 0, 0), line[0], line[1], 3)
 
-        # Calculate frame rate, render text on screen, and draw frame rate text on next screen
+        
+        # Print out the scoreboard with time, score, and FPS
+
+        # Calc values
         actual_frame_rate = int(self.clock.get_fps())
-        # Calculate the elapsed time
         elapsed_time = (pygame.time.get_ticks() - self.start_time) // 1000
+        score = self.score 
 
-         # Render the timer and score text
-        timer_text = font.render(f"Time: {elapsed_time}s", True, (255, 255, 255))
-        score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+        # Create the scoreboard background
+        scoreboard_bg = pygame.Surface((200, 90))
+        scoreboard_bg.fill((0, 0, 0))
+        scoreboard_bg.set_alpha(150)  # Make the background slightly transparent
+
+        # Render the timer and score text
+        timer_text = self.font.render(f"Time: {elapsed_time}s", True, (255, 255, 255))
+        score_text = self.font.render(f"Score: {score}", True, (255, 255, 255))
         frame_rate_text = self.font.render(f"FPS: {actual_frame_rate}", True, (255, 255, 255))
-        self.screen.blit(frame_rate_text, (670, 20))
-
+        
+        # Draw the text on the scoreboard background
+        scoreboard_bg.blit(timer_text, (10, 10))
+        scoreboard_bg.blit(score_text, (10, 35))
+        scoreboard_bg.blit(frame_rate_text, (10, 60))
+        self.screen.blit(scoreboard_bg, (self.screen.get_width() - 210, 10))
 
         # print("Collides:", self.racecar.collides_with_rect(self.racecar2))
         pygame.display.flip()
