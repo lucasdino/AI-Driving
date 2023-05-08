@@ -32,7 +32,6 @@ def sprite_to_lines(sprite_rect, width, height, angle):
     fl_x = center[0] - (math.cos(math.radians(angle))*(height/2)) + (math.cos(math.radians(90-angle))*(width/2))
     fl_y = center[1] + (math.sin(math.radians(angle))*(height/2)) + (math.sin(math.radians(90-angle))*(width/2))
     front_left = (fl_x, fl_y)
-    print(f"W: {width}; H: {height}; A: {angle}")
     
     # Calculate front right coordinates
     fr_x = center[0] - (math.cos(math.radians(angle))*(height/2)) - (math.cos(math.radians(90-angle))*(width/2))
