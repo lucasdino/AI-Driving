@@ -90,18 +90,11 @@ class Racetrack:
             # Iterate through rows in CSV
             for row in csv_reader:
                 temp_line = []
-                temp_max_x, temp_max_y = 0, 0
                 
                 # Iterate through points in row. We want to store the lines (as tuple in loc 0) and the max x and y to enable quick parsing for calculation
                 for point in row:
-                    temp_tuple = tuple(map(int, point.strip('()').split(', ')))
+                    temp_line.append(tuple(map(int, point.strip('()').split(', '))))
 
-                    # Calculate the max x and y and store for each line. This helps us optimize calculations later on    
-                    if temp_max_x < temp_tuple[0]: temp_max_x = temp_tuple[0]
-                    if temp_max_y < temp_tuple[1]: temp_max_y = temp_tuple[1]
-                    temp_line.append(temp_tuple)
-
-                temp_line.append(tuple([temp_max_x, temp_max_y]))
                 self.lines.append(temp_line)
         
         # Returns a list with 3 tuples in each element: Point1 (X,Y), Point2 (X,Y), Max Indices (Max X, Max Y) 

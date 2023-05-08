@@ -7,7 +7,7 @@ from models import Racecar, Racetrack
 class Driver:
     
     # Initialize master class intance, creating pygame instance and drawing game screen
-    def __init__(self):
+    def __init__(self, attempt):
         self._init_pygame()
         self.screen = pygame.display.set_mode((800, 600))
         
@@ -20,18 +20,18 @@ class Driver:
         self.clock = pygame.time.Clock()
         self.start_time = pygame.time.get_ticks()
         self.font = pygame.font.Font(None, 20)
-
-        # Instantiate Score = 0
         self.score = 0
+        self.attempt = attempt
+
+        self.running = True
 
 
     # Main game loop function which will call on other game loop classes
     def main_loop(self):
-        while True:
-            self._handle_input()            # Accepts user inputs (like key changes)
-            self._process_game_logic()      # Adjusts / acts on all game assets
-            self._draw()                    # Re-renders screen
-            self.clock.tick(40)             # Cap frame rate at 40fps
+        self._handle_input()            # Accepts user inputs (like key changes)
+        self._process_game_logic()      # Adjusts / acts on all game assets
+        self._draw()                    # Re-renders screen
+        self.clock.tick(40)             # Cap frame rate at 40fps
 
 
     # Creates pygame instance
@@ -75,7 +75,7 @@ class Driver:
 
         # Check for collisions with the walls
         for line in self.racetrack.lines:
-            if(self.racecar.check_line_collision(line)): print("Game Over!")
+            if(self.racecar.check_line_collision(line)): self.running = False
 
 
     # Class to re-render the screen
@@ -95,19 +95,17 @@ class Driver:
         score = self.score 
 
         # Create the scoreboard background
-        scoreboard_bg = pygame.Surface((200, 90))
+        scoreboard_bg = pygame.Surface((200, 60))
         scoreboard_bg.fill((0, 0, 0))
         scoreboard_bg.set_alpha(150)  # Make the background slightly transparent
 
         # Render the timer and score text
-        timer_text = self.font.render(f"Time: {elapsed_time}s", True, (255, 255, 255))
-        score_text = self.font.render(f"Score: {score}", True, (255, 255, 255))
-        frame_rate_text = self.font.render(f"FPS: {actual_frame_rate}", True, (255, 255, 255))
+        timer_score_text = self.font.render(f"Time: {elapsed_time}s     Score: {score}", True, (255, 255, 255))
+        fps_attempt_text = self.font.render(f"FPS: {actual_frame_rate}     Attempt: {self.attempt}", True, (255, 255, 255))
         
         # Draw the text on the scoreboard background
-        scoreboard_bg.blit(timer_text, (10, 10))
-        scoreboard_bg.blit(score_text, (10, 35))
-        scoreboard_bg.blit(frame_rate_text, (10, 60))
+        scoreboard_bg.blit(timer_score_text, (10, 10))
+        scoreboard_bg.blit(fps_attempt_text, (10, 35))
         self.screen.blit(scoreboard_bg, (self.screen.get_width() - 210, 10))
 
         # print("Collides:", self.racecar.collides_with_rect(self.racecar2))
