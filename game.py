@@ -82,10 +82,13 @@ class Driver:
     def _draw(self):
         self.screen.blit(self.background, (0, 0))
         self.racecar.draw(self.screen)
+        self.racecar.vision_line_distance(self.racetrack.lines)
 
         for line in self.racetrack.lines:
             pygame.draw.line(self.screen, (255, 0, 0), line[0], line[1], 3)
 
+        for line in self.racecar.visionlines:
+            pygame.draw.line(self.screen, (255, 182, 193), line[0], line[1], 1)
         
         # Print out the scoreboard with time, score, and FPS
 
@@ -108,5 +111,4 @@ class Driver:
         scoreboard_bg.blit(fps_attempt_text, (10, 35))
         self.screen.blit(scoreboard_bg, (self.screen.get_width() - 210, 10))
 
-        # print("Collides:", self.racecar.collides_with_rect(self.racecar2))
         pygame.display.flip()
