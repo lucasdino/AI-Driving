@@ -3,7 +3,7 @@ import pygame
 import os
 import math
 import numpy as np
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString
 
 def load_sprite(name, with_alpha=True):
     """"Helper function that loads in the sprite from the assets folder"""

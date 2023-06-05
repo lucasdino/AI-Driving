@@ -29,8 +29,8 @@ class Racecar:
             pygame.draw.line(surface, (0, 0, 255), self.linesegments[i][0], self.linesegments[i][1], 4)
 
         # Draw the lines that make up the vision
-        # for i in range(len(self.visionlines)):
-        #     pygame.draw.line(surface, (100, 100, 0), self.visionlines[i][0], self.visionlines[i][1], 2)
+        for i in range(len(self.visionlines)):
+            pygame.draw.line(surface, (100, 100, 0), self.visionlines[i][0], self.visionlines[i][1], 2)
 
         surface.blit(self.rotated_sprite, self.rotated_sprite_rect)
 
@@ -112,9 +112,11 @@ class Racetrack:
     def __init__(self):
         self.lines = []         # Pull in tuples from CSV file
         self._load_lines_from_csv()
+        self.rewards = []       # Pull in points from CSV file
+        self._load_rewards_from_csv()
 
     def _load_lines_from_csv(self):
-        filename = os.path.join("assets", "racetrack_lines.csv")
+        filename = os.path.join("assets/track", "racetrack_lines.csv")
         with open(filename, "r", newline="") as csvfile:
             csv_reader = csv.reader(csvfile)
             
@@ -122,11 +124,18 @@ class Racetrack:
             for row in csv_reader:
                 temp_line = []
                 
-                # Iterate through points in row. We want to store the lines (as tuple in loc 0) and the max x and y to enable quick parsing for calculation
+                # Iterate through points in row. We want to store the lines (as tuple in loc 0)
                 for point in row:
                     temp_line.append(tuple(map(int, point.strip('()').split(', '))))
 
                 self.lines.append(temp_line)
-        
-        # Returns a list with 3 tuples in each element: Point1 (X,Y), Point2 (X,Y), Max Indices (Max X, Max Y) 
-        return self.lines
+
+    def _load_rewards_from_csv(self):
+        filename = os.path.join("assets/track", "Reward_drawing-06.05.23-01.32.csv")
+        with open(filename, "r", newline="") as csvfile:
+            csv_reader = csv.reader(csvfile)
+            
+            # Iterate through rows in CSV
+            for row in csv_reader:
+                self.rewards.append((int(row[0]), int(row[1])))
+            

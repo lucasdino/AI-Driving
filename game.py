@@ -1,13 +1,16 @@
 import pygame
 import sys
+import datetime
 from utils import load_sprite, shrink_sprite
 from models import Racecar, Racetrack
+from drawing_module import Drawing
 
 
 class Driver:
     
     # Initialize master class intance, creating pygame instance and drawing game screen
     def __init__(self, attempt):
+        """"Initialize the game class and set up necessary game variables"""
         self._init_pygame()
         self.screen = pygame.display.set_mode((800, 600))
         
@@ -15,6 +18,7 @@ class Driver:
         self.background = load_sprite("RacetrackSprite", False)
         self.racecar = Racecar((72,356), shrink_sprite(load_sprite("RacecarSprite"), 0.15), (0,0))
         self.racetrack = Racetrack()
+        self.rewardcoin = shrink_sprite(load_sprite("MarioCoin"), 0.015)
 
         # Pull in clock and create a font object for displaying text on screen
         self.clock = pygame.time.Clock()
@@ -24,6 +28,11 @@ class Driver:
         self.attempt = attempt
 
         self.running = True
+
+        # Toggle to turn on or off the various states of the game
+        self.draw_toggle = False      # Toggle to turn on the racetrack drawing feature
+        self.rt_reward_toggle = "Reward"        # Either type 'Reward' or 'Racetrack' to set up the type of drawing module that will be deployed
+        if self.draw_toggle: self.drawing_module = Drawing()
 
 
     # Main game loop function which will call on other game loop classes
@@ -46,13 +55,25 @@ class Driver:
         # Close the window if you hit the 'x' button or 'Esc' key
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+
+                # If drawing module is turned on save lines / rewards to CSV
+                formatted_datetime = datetime.datetime.now().strftime("%m.%d.%y-%H.%M")
+                if self.draw_toggle: self.drawing_module.save_drawing_to_csv(self.rt_reward_toggle + "_drawing-" + formatted_datetime)
                 quit()
+        
+            # If drawing module is toggled on, call on the drawing module
+            if self.draw_toggle: 
+                if self.rt_reward_toggle == "Racetrack":
+                    self.drawing_module.handle_rt_drawing_events(event)
+                else:
+                    self.drawing_module.handle_reward_drawing_events(event)
         
         # Code to listen for keyboard presses
         acceleration = 0.3     # Set speed of any accel / decel
         turn_speed = 5.0      # Set speed for turning (in degrees)
         drag = 0.9           # Set drag factor to simulate braking
         keys = pygame.key.get_pressed()
+
 
         # Update racecar position based on pressed keys
         if keys[pygame.K_UP]:
@@ -75,21 +96,25 @@ class Driver:
 
         # Check for collisions with the walls
         for line in self.racetrack.lines:
-            if(self.racecar.check_line_collision(line)): self.running = False
-
+            if(self.racecar.check_line_collision(line)): 
+                self.running = False
 
     # Class to re-render the screen
     def _draw(self):
         self.screen.blit(self.background, (0, 0))
         self.racecar.draw(self.screen)
         self.racecar.vision_line_distance(self.racetrack.lines)
+        
+        # If drawing module is turned on, draw lines / rewards on the screen
+        if self.draw_toggle: 
+            if self.rt_reward_toggle == "Racetrack":
+                self.drawing_module.draw_rt_lines(self.screen)
+            else:
+                self.drawing_module.draw_rewards(self.rewardcoin, self.screen)
 
         for line in self.racetrack.lines:
             pygame.draw.line(self.screen, (255, 0, 0), line[0], line[1], 3)
 
-        for line in self.racecar.visionlines:
-            pygame.draw.line(self.screen, (255, 182, 193), line[0], line[1], 1)
-        
         # Print out the scoreboard with time, score, and FPS
 
         # Calc values
