@@ -2,47 +2,54 @@ import pygame
 import csv
 
 class Drawing:
+    """The Drawing class provides modules to draw a racetrack map and set rewards with the mouse."""
+    
     def __init__(self):
-        self.drawing_flag = False
-        self.start_point = None
-        self.end_point = None
-        self.lines_counter = 0
-        self.lines = []
-        self.rewards = []
+        """Initializes Drawing class and sets up helper variables."""
+        self._drawing_flag = False
+        self._start_point = None
+        self._end_point = None
+        self._lines_counter = 0
+        self._lines = []
+        self._rewards = []
 
     def draw_rt_lines(self, screen):
-        for line in self.lines:
+        """Draws the racetrack lines on the screen."""
+        for line in self._lines:
             pygame.draw.line(screen, (255, 165, 0), line[0], line[1], 2)
 
     def draw_rewards(self, coinsprite, screen):
-        for reward in self.rewards:
+        """Draws the rewards on the screen."""
+        for reward in self._rewards:
             x,y = reward
             coin_width, coin_height = coinsprite.get_size()
             screen.blit(coinsprite, (x - coin_width // 2, y - coin_height // 2))
     
     def handle_rt_drawing_events(self, event):
+        """Handles racetrack drawing events based on the pygame event given."""
         if event.type == pygame.MOUSEBUTTONDOWN:
-            self.drawing_flag = True
-            self.start_point = event.pos
-            self.lines.append((self.start_point, self.start_point))
+            self._drawing_flag = True
+            self._start_point = event.pos
+            self._lines.append((self._start_point, self._start_point))
         elif event.type == pygame.MOUSEBUTTONUP:
-            self.drawing_flag = False
-            self.end_point = event.pos
-            self.lines[self.lines_counter] = self.start_point, self.end_point
-            self.lines_counter += 1
-        elif event.type == pygame.MOUSEMOTION and self.drawing_flag:
-            self.end_point = event.pos
-            self.lines[self.lines_counter] = self.start_point, self.end_point
+            self._drawing_flag = False
+            self._end_point = event.pos
+            self._lines[self._lines_counter] = self._start_point, self._end_point
+            self._lines_counter += 1
+        elif event.type == pygame.MOUSEMOTION and self._drawing_flag:
+            self._end_point = event.pos
+            self._lines[self._lines_counter] = self._start_point, self._end_point
             
-    
     def handle_reward_drawing_events(self, event):
+        """Handles reward drawing events based on the pygame event given."""
         if event.type == pygame.MOUSEBUTTONDOWN:
-            self.rewards.append(event.pos)
+            self._rewards.append(event.pos)
 
     def save_drawing_to_csv(self, filename):
+        """Saves the lines and rewards to a CSV file."""
         with open(f'assets/track/{filename}.csv', "w", newline="") as csvfile:
             csv_writer = csv.writer(csvfile)
-            for line in self.lines:
+            for line in self._lines:
                 csv_writer.writerow(line)
-            for reward in self.rewards:
+            for reward in self._rewards:
                 csv_writer.writerow(reward)
