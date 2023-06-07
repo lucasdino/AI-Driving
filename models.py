@@ -1,8 +1,8 @@
 import pygame
 import csv
 import os
-import math
-from pygame.math import Vector2
+from math import sin, cos, radians
+from pygame import Vector2
 from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance
 
 
@@ -40,15 +40,15 @@ class Racecar:
 
     def accelerate(self, acceleration):
         """Accelerates the racecar based on the given acceleration."""
-        dx = acceleration * math.cos(math.radians(self.angle))
-        dy = acceleration * math.sin(math.radians(self.angle))
+        dx = acceleration * cos(radians(self.angle))
+        dy = acceleration * sin(radians(self.angle))
         self.velocity += Vector2(dx, -dy)
 
     def brake(self, deceleration):
         """Applies a braking force to the racecar based on the provided deceleration."""
-        dx = deceleration * math.cos(math.radians(self.angle))
-        dy = deceleration * math.sin(math.radians(self.angle))
-        self.velocity -= Vector2(dx, dy)
+        dx = deceleration * cos(radians(self.angle))
+        dy = deceleration * sin(radians(self.angle))
+        self.velocity -= Vector2(dx, -dy)
 
     def turn_left(self, turn_speed):
         """Turns the racecar to the left based on the provided turn_speed."""
@@ -89,10 +89,10 @@ class Racecar:
 
         for _ in range(num_steps):
             temp_angle += angle_step
-            angle_rad = math.radians(temp_angle)
+            angle_rad = radians(temp_angle)
             self.visiondist.append(min(nearest_line_distance(center, angle_rad, line) for line in racetrack_line))
-            temp_x = center[0] + self.visiondist[-1] * math.sin(angle_rad)
-            temp_y = center[1] + self.visiondist[-1] * math.cos(angle_rad)
+            temp_x = center[0] + self.visiondist[-1] * sin(angle_rad)
+            temp_y = center[1] + self.visiondist[-1] * cos(angle_rad)
             self.visionlines.append((center, (temp_x, temp_y)))
 
 

@@ -55,12 +55,13 @@ def is_counterclockwise(A, B, C):
     """Determines if points A, B, C are ordered in a counterclockwise direction."""
     return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0])
 
-
 def line_intersection(line1, line2):
     """Computes the intersection point of two lines."""
-    intersect_point = LineString(line1).intersection(LineString(line2))
-    return (intersect_point.x, intersect_point.y) if not intersect_point.is_empty else None
-
+    try:
+        intersect_point = LineString(line1).intersection(LineString(line2))
+        return (intersect_point.x, intersect_point.y) if not intersect_point.is_empty else None
+    except Exception:
+        return None
 
 def nearest_line_distance(center, angle, racetrack_line):
     """Computes the distance to the nearest line from a point at a given angle."""
@@ -72,5 +73,10 @@ def nearest_line_distance(center, angle, racetrack_line):
     # Calculate the intersection point between the extended line and the given line segment
     intersection = line_intersection(line, racetrack_line)
 
-    # Calculate the distance from the center point to the intersection point
-    return np.hypot(*np.subtract(center, intersection)) if intersection else float('inf')
+    # If the intersection point is not None, calculate the distance from the center point to the intersection point
+    if intersection is not None:
+        return np.hypot(*np.subtract(center, intersection))
+
+    # If the intersection point is None, return infinity
+    else:
+        return float('inf')
