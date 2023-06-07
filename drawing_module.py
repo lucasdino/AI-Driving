@@ -18,12 +18,13 @@ class Drawing:
         for line in self._lines:
             pygame.draw.line(screen, (255, 165, 0), line[0], line[1], 2)
 
-    def draw_rewards(self, coinsprite, screen):
+    def draw_rewards(self, rewardcoin, screen):
         """Draws the rewards on the screen."""
         for reward in self._rewards:
             x,y = reward
-            coin_width, coin_height = coinsprite.get_size()
-            screen.blit(coinsprite, (x - coin_width // 2, y - coin_height // 2))
+            coin_width = rewardcoin.sprite_rect.width
+            coin_height = rewardcoin.sprite_rect.height
+            screen.blit(rewardcoin.sprite, (x - coin_width // 2, y - coin_height // 2))
     
     def handle_rt_drawing_events(self, event):
         """Handles racetrack drawing events based on the pygame event given."""
