@@ -12,11 +12,17 @@ class Driver:
     DRAW_TOGGLE = False                     # Toggle on the drawing module
     RACETRACK_REWARD_TOGGLE = "REWARD"      # If DRAW_TOGGLE, set which you will be drawing with your mouse
     HUMAN_AI_TOGGLE = "HUMAN"               # Set who will be driving the car
+    MODEL_TRAIN_INFER_TOGGLE = "TRAIN"      # Set 'TRAIN' if model is training; set 'INFER' if model is driving
     
     # Define motion parameters
     ACCELERATION = 0.3
     TURN_SPEED = 5.0
     DRAG = 0.9
+
+    # Define reward function metrics
+    DECAYRATE = 0.95
+    COINREWARD = 100
+    CRASHPENALTY = 100
 
     def __init__(self, attempt):
         """Initialize the game, including Pygame, screen, sprites, and other game parameters."""
@@ -35,6 +41,9 @@ class Driver:
         # Set game states and timers
         self.running = True
         self.score = 0
+        self.rewardfunction = 0
+        self.prior_reward_coin_distance = 0
+        self.frame_action = 0
         self.attempt = attempt
         self.clock = pygame.time.Clock()
         self.start_time = pygame.time.get_ticks()
@@ -82,28 +91,29 @@ class Driver:
                     self.drawing_module.handle_reward_drawing_events(event)
 
         # Handle key presses for racecar motion
-        keypress = 0
+        self.frame_action = 0
         if self.HUMAN_AI_TOGGLE == "HUMAN":
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_UP]: keypress = 1
-            elif keys[pygame.K_DOWN]: keypress = 2
-            elif keys[pygame.K_LEFT]: keypress = 3
-            elif keys[pygame.K_RIGHT]: keypress = 4
+            if keys[pygame.K_UP]: self.frame_action = 1
+            elif keys[pygame.K_DOWN]: self.frame_action = 2
+            elif keys[pygame.K_LEFT]: self.frame_action = 3
+            elif keys[pygame.K_RIGHT]: self.frame_action = 4
         
         elif self.HUMAN_AI_TOGGLE == "AI":
-            # self.racecar.modelinputs
+            # self.racecar.modelinputs / self.frame_action / self.rewardfunction
             pass     
+        
         else:
             print("Please make sure 'HUMAN_AI_TOGGLE is set to either 'HUMNAN' or 'AI'")
         
         # Handle movement based on input from either human or AI
-        if keypress == 1:
+        if self.frame_action == 1:
             self.racecar.accelerate(self.ACCELERATION)
-        elif keypress == 2:
+        elif self.frame_action == 2:
             self.racecar.brake(self.ACCELERATION)
-        if keypress == 3:
+        if self.frame_action == 3:
             self.racecar.turn_left(self.TURN_SPEED)
-        elif keypress == 4:
+        elif self.frame_action == 4:
             self.racecar.turn_right(self.TURN_SPEED)
             
         # Update racecar's velocity and position
@@ -112,6 +122,7 @@ class Driver:
         
         # Update racecar's vision lines
         self.racecar.vision_line_distance(self.racetrack.lines)
+        self.prior_reward_coin_distance = self.racecar.modelinputs['distance_to_reward']
         self.racecar.calculate_reward_line(self.rewardcoin)
 
 
@@ -121,19 +132,32 @@ class Driver:
         """
         # Move the racecar
         self.racecar.move()
+        _car_survived_frame = True
 
         # Check for collisions with the walls
         for line in self.racetrack.lines:
             if self.racecar.check_line_collision(line): 
                 self.running = False
+                _car_survived_frame = False
+                self.rewardfunction -= self.CRASHPENALTY
         
-        # Check for collisions with the coins
+        # If car is still alive after the move, add one to the reward function
+        if self.running and _car_survived_frame:
+            self.rewardfunction += 1
+            if self.prior_reward_coin_distance > self.racecar.modelinputs['distance_to_reward']:
+                self.rewardfunction +=1
+
+        # Check for collisions with the coins; if so add to score / reward function
         for line in self.rewardcoin.lines:
             if self.racecar.check_line_collision(line):
                 self.score += 1
+                self.rewardfunction += self.COINREWARD
                 _next_reward_coin = self.score % len(self.racetrack.rewards)
                 self.rewardcoin = RewardCoin(self.racetrack.rewards[_next_reward_coin], self.coinsprite)
                 break
+        
+        # Apply decay factor to reward function
+        self.rewardfunction *= self.DECAYRATE
 
 
     def _render_game(self):
@@ -146,7 +170,7 @@ class Driver:
         elapsed_time = (pygame.time.get_ticks() - self.start_time) // 1000
 
         # Draw the background and the racecar
-        self.game_background.draw(self.screen, elapsed_time, self.score, frame_rate, self.attempt)
+        self.game_background.draw(self.screen, elapsed_time, self.rewardfunction, frame_rate, self.attempt)
         self.racecar.draw(self.screen)
         self.racetrack.draw(self.screen)
         self.rewardcoin.draw(self.screen)

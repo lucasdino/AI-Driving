@@ -17,9 +17,9 @@ class Racecar:
         self._sprite_w = self.rotated_sprite_rect.width
         self._sprite_l = self.rotated_sprite_rect.height
         self.linesegments = []
+        self.vision_lines = []
         
         self.modelinputs = {
-            "vision_lines": [],
             "vision_distances": [],
             "angle": radians(self.angle),
             "angle_to_reward": 0,
@@ -39,7 +39,7 @@ class Racecar:
         #     pygame.draw.line(screen, (0, 0, 255), line[0], line[1], 4)
         
         # Racecar vision lines and reward line - uncomment for troubleshooting
-        # for line in self.modelinputs['vision_lines']:
+        # for line in self.vision_lines:
         #     pygame.draw.line(screen, (200, 100, 0), line[0], line[1], 2)
         # self._draw_reward_line(screen)
         
@@ -115,7 +115,7 @@ class Racecar:
         temp_angle = self.angle - angle_step
         num_steps = int(360 / angle_step)
         center = self.rotated_sprite_rect.center
-        self.modelinputs['vision_lines'] = []
+        self.vision_lines = []
         self.modelinputs['vision_distances'] = []
 
         for _ in range(num_steps):
@@ -124,7 +124,7 @@ class Racecar:
             self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle_rad, line) for line in racetrack_line))
             temp_x = center[0] + self.modelinputs['vision_distances'][-1] * sin(angle_rad)
             temp_y = center[1] + self.modelinputs['vision_distances'][-1] * cos(angle_rad)
-            self.modelinputs['vision_lines'].append((center, (temp_x, temp_y)))
+            self.vision_lines.append((center, (temp_x, temp_y)))
     
 
     def calculate_reward_line(self, rewardcoin):
