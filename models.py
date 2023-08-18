@@ -156,13 +156,17 @@ class Racetrack:
         self.lines = []
         self.rewards = []
 
-        self._load_lines_from_csv()
         self._load_rewards_from_csv()
+        self._load_lines_from_csv()
 
+        if draw_toggle and (not racetrack_reward_toggle == "RACETRACK") and (not racetrack_reward_toggle == "REWARD"):
+            print("***ALERT*** Please make sure the 'RACETRACK_REWARD_TOGGLE' in '__main__.py' is set to either 'RACETRACK' or 'REWARD'.")
+            quit()
+        
 
     def _load_lines_from_csv(self):
         """Loads race track lines from a CSV file."""
-        filename = os.path.join("assets/track", "drawn_racetrack.csv")
+        filename = os.path.join("assets/track", "drawn_racetrack-06.05.23-01.10.csv")
         with open(filename, "r", newline="") as csvfile:
             csv_reader = csv.reader(csvfile)
             for row in csv_reader:
@@ -231,11 +235,12 @@ class GameBackground:
         screen.blit(self.racetrack_background, (0,0))
         
         temp_scoreboard = self.scoreboard_bg.copy()
-        score_time_text = self.font.render(f"Time: {time}s     Score: {score:.2f}", True, (255, 255, 255))
-        fps_attempt_text = self.font.render(f"FPS: {frame_rate}     Attempt: {attempt}     Wins: {wins}", True, (255, 255, 255))
+        score_time_text = self.font.render(f"Time: {time}s        Score: {score:.2f}", True, (255, 255, 255))
+        attempt_wins_text = self.font.render(f"Attempt: {attempt}     Wins: {wins}", True, (255, 255, 255))
+        # FPS_attempt_text = self.font.render(f"FPS: {frame_rate}     Attempt: {attempt}", True, (255, 255, 255))
         
         temp_scoreboard.blit(score_time_text, (10, 10))
-        temp_scoreboard.blit(fps_attempt_text, (10, 35))
+        temp_scoreboard.blit(attempt_wins_text, (10, 35))
         screen.blit(temp_scoreboard, (screen.get_width() - 210, 10))
 
 
@@ -292,7 +297,6 @@ class GameBackground:
 
         # Draw keys and arrows
         for i, key in enumerate(['Up', 'Down', 'Left', 'Right']):
-            print(converted_keypress)
             color = RED if converted_keypress[i] else GRAY  # i+1 because keypress[0] is for 'None'
             
             # Draw key with black border

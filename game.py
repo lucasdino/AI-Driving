@@ -5,8 +5,8 @@ from models import GameBackground, Racecar, Racetrack, RewardCoin
 from drawing_module import Drawing
 
 
-DISPLAY_HITBOXES = True                # Toggle to turn on displaying hitboxes or not
-DISPLAY_ARROWS = True                 # Toggle to turn on the arrow key displays
+DISPLAY_HITBOXES = True                 # Toggle to turn on displaying hitboxes or not
+DISPLAY_ARROWS = True                   # Toggle to turn on the arrow key displays
 SCREEN_SIZE = (800, 600)                # Define the game screen size
 
 class RaceGame:
@@ -39,7 +39,7 @@ class RaceGame:
         self.racecar = Racecar((72,356), shrink_sprite(load_sprite("RacecarSprite"), 0.15), (0,0))
         self.racetrack = Racetrack(draw_toggle, racetrack_reward_toggle)
 
-        self.coinsprite = shrink_sprite(load_sprite("MarioCoin"), 0.015)
+        self.coinsprite = shrink_sprite(load_sprite("MarioCoin"), 0.015) 
         self.rewardcoin = RewardCoin(self.racetrack.rewards[0], self.coinsprite)
         
         # Set game states and timers
@@ -80,12 +80,18 @@ class RaceGame:
 
     def ai_main_loop(self):
         """Main game loop if set to "AI" - depending on what 'TRAIN_INFER_TOGGLE' is set to will determine how the neural net will be interacted with"""
+        # Throw message if draw toggle is turned on and trying to run with model
+        if self.draw_toggle:
+            print("***ALERT*** You are trying to run the neural net while draw_toggle is set to 'TRUE'. Please switch to 'HUMAN' if you are trying to draw new rewards / lines or turn off the 'draw_toggle'")
+            quit()
+        
         if self.train_infer_toggle == "TRAIN":
             pass
         elif self.train_infer_toggle == "INFER":
             pass
         else: 
-            print("Please make sure the 'TRAIN_INFER_TOGGLE' in '__main__.py' is set to either 'TRAIN' or 'INFER'.")
+            print("***ALERT*** Please make sure the 'TRAIN_INFER_TOGGLE' in '__main__.py' is set to either 'TRAIN' or 'INFER'.")
+            quit()
         
 
     def _update_racecar_env_vars(self):
@@ -172,8 +178,12 @@ class RaceGame:
             self.game_background.draw_key_status(self.screen, self.frame_action)
         
         self.racecar.draw(self.screen, DISPLAY_HITBOXES)
-        self.racetrack.draw(self.screen, DISPLAY_HITBOXES)
-        self.rewardcoin.draw(self.screen, DISPLAY_HITBOXES)
+
+        if not self.draw_toggle or self.racetrack_reward_toggle == "REWARD":         
+            self.racetrack.draw(self.screen, DISPLAY_HITBOXES)
+        
+        if not self.draw_toggle or self.racetrack_reward_toggle == "RACETRACK":         
+            self.rewardcoin.draw(self.screen, DISPLAY_HITBOXES)
 
         # Draw racetrack lines and rewards if the drawing module is turned on
         if self.draw_toggle: 

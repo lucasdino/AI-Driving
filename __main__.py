@@ -8,7 +8,7 @@ wins = 0
 HUMAN_AI_TOGGLE = "HUMAN"               # Set who will be driving the car
 TRAIN_INFER_TOGGLE = "TRAIN"            # If HUMAN_AI_TOGGLE = "AI" -> Set 'TRAIN' if model is training; set 'INFER' if model is driving
 DRAW_TOGGLE = False                     # Toggle on the drawing module
-RACETRACK_REWARD_TOGGLE = "REWARD"      # If DRAW_TOGGLE, set which you will be drawing with your mouse
+RACETRACK_REWARD_TOGGLE = "RACETRACK"      # If DRAW_TOGGLE, set which you will be drawing with your mouse
 
 
 if __name__ == "__main__":
