@@ -1,5 +1,6 @@
 import os
 import pygame
+import datetime
 import numpy as np
 from math import sin, cos, radians
 from shapely.geometry import LineString
@@ -80,3 +81,65 @@ def nearest_line_distance(center, angle, racetrack_line):
     # If the intersection point is None, return infinity
     else:
         return float('inf')
+
+
+def keypress_to_action(keys):
+    """Takes in a list of binaries relating to keys - convert list to action"""
+    action = [0]*9       # Do nothing is set as default
+    
+    if keys[pygame.K_UP] and keys[pygame.K_LEFT]: action[5] = 1
+    elif keys[pygame.K_UP] and keys[pygame.K_RIGHT]: action[6] = 1
+    elif keys[pygame.K_DOWN] and keys[pygame.K_LEFT]: action[7] = 1
+    elif keys[pygame.K_DOWN] and keys[pygame.K_RIGHT]: action[8] = 1
+    elif keys[pygame.K_UP]: action[1] = 1
+    elif keys[pygame.K_DOWN]: action[2] = 1
+    elif keys[pygame.K_LEFT]: action[3] = 1
+    elif keys[pygame.K_RIGHT]: action[4] = 1
+    else: action[0] = 1
+
+    return action
+
+
+def action_to_motion(racecar, action, acceleration, turn_speed):
+    """Converts list of actions to racecar motion"""
+
+    # Handle movement based on input from either human or AI
+    if action[0]:
+        pass    # Do nothing
+    if action[1]:
+        racecar.accelerate(acceleration)
+    if action[2]:
+        racecar.brake(acceleration)
+    if action[3]:
+        racecar.turn_left(turn_speed)
+    if action[4]:
+        racecar.turn_right(turn_speed)
+    if action[5]:
+        racecar.accelerate(acceleration)
+        racecar.turn_left(turn_speed)
+    if action[6]:
+        racecar.accelerate(acceleration)
+        racecar.turn_right(turn_speed)
+    if action[7]:
+        racecar.brake(acceleration)
+        racecar.turn_left(turn_speed)
+    if action[8]:
+        racecar.brake(acceleration)
+        racecar.turn_right(turn_speed)
+
+
+def game_exit_or_drawing(events, draw_toggle, racetrack_reward_toggle, drawing_module):
+    for event in events:
+        # Handle 'quit' events
+        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+            if draw_toggle:
+                formatted_datetime = datetime.datetime.now().strftime("%m.%d.%y-%H.%M")
+                drawing_module.save_drawing_to_csv("drawn_" + racetrack_reward_toggle.lower() + "-" + formatted_datetime)
+            quit()
+
+        # Handle drawing events if drawing is toggled on
+        if draw_toggle:
+            if racetrack_reward_toggle == "RACETRACK":
+                drawing_module.handle_rt_drawing_events(event)
+            else:
+                drawing_module.handle_reward_drawing_events(event)
