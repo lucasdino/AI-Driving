@@ -42,7 +42,7 @@ class DQN(nn.Module):
     def forward(self, x):
         """
         Called with either one element to determine next action, or a batch
-        during optimization. Returns tensor([[left0exp,right0exp]...]).    
+        during optimization. Returns tensor of size of action set    
         """
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
@@ -51,18 +51,18 @@ class DQN(nn.Module):
     def export_parameters(self, filename):
         directory = '/assets/nn_params/'
         os.makedirs(directory, exist_ok=True)
-        filepath = os.path.join(directory, filename)
-        torch.save(self.policy_net.state_dict(), filepath)
+        filepath = os.path.join(directory, filename)        
+        torch.save(self.state_dict(), filepath)
         print("Model parameters exported successfully.")
  
 
 def random_motion(action_space_size):
-    """Funciton provides random motion to car"""
+    """Function provides random motion to car"""
     no_action_threshold = 0.9
     rand = random.random()
     action_list = [0]*action_space_size
     
-    # Biased toward not doing 'nothing'
+    # Biased toward not doing 'nothing' - i.e., actually moving in a direction
     if rand > no_action_threshold:
         action_list[0] = 1
         return action_list
@@ -70,3 +70,15 @@ def random_motion(action_space_size):
     else:
         action_list[random.randint(1,len(action_list))] = 1
         return action_list
+    
+
+def instantiate_hardware(self):
+    """Function to load CUDA if GPU is available; otherwise use CPU""" 
+    hardware = "tbu"
+    if torch.cuda.is_available():
+        hardware = "cuda"
+    else:
+        hardware = "cpu"
+
+    print(f"Utilizing {hardware} for neural net hardware.")
+    return torch.device(hardware)

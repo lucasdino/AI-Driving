@@ -5,7 +5,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
-from dqn_modules import ReplayMemory, DQN, Transition, random_motion
+from dqn_modules import ReplayMemory, DQN, Transition, random_motion, instantiate_hardware
 import datetime
 
 import torch
@@ -13,11 +13,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-
-# set up matplotlib; necessary mostly for iPython / Jupyter Notebook envs
-is_ipython = 'inline' in matplotlib.get_backend()
-if is_ipython:
-    from IPython import display
 
 # Enable interactive mode - i.e., dynamic updates for plot so that the function is continuously plotted
 plt.ion()
@@ -32,7 +27,7 @@ class DQN_Model():
     # EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
     # TAU is the update rate of the target network
     # LR is the learning rate of the ``AdamW`` optimizer
-    # N_ACTIONS is the number of possible actions from the game (n=5: Nothing, Up, Down, Left, Right)
+    # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Down, Left, Right, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
     BATCH_SIZE = 128
     GAMMA = 0.99
@@ -48,36 +43,49 @@ class DQN_Model():
 
     def _init_(self, TRAIN_INFER_TOGGLE):
         """Instantaite class of DQN Model"""
-        # if GPU is to be used
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        # Create vars to track training steps / list to plot loss in real-time
-        # One episode relates to one attempt in the 'Game Instance' (i.e., you finish # of laps or you crash)
-        self.steps_done = 0
-        self.episode_durations = []
+        
+        # Leverage GPU if exists, otherwise use CPU
+        self.device = instantiate_hardware()
 
         # Create neural nets of input size of N_Observations and output size of N_actions. Load to GPU if GPU is available
-        # Then load the policy net weights into the target net
         self.policy_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
-        self.target_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
         
-        # If not training the model, can load existing parameters for run
+        # If we want to be training our model, we need to set up different variables as well as instantiating an optimizer and a Memory object
         if TRAIN_INFER_TOGGLE == "TRAIN":
-            self.target_net.load_state_dict(self.policy_net.state_dict())
             
-        # If not training the model, can load existing parameters for run
-        if TRAIN_INFER_TOGGLE == "INFER":
+            # If we decide to train the model, we'll need a target net to address overfitting. We'll set up so that it is the same as the policy net
+            self.target_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+
+            # Create vars to track training steps / list to plot loss in real-time
+            # One episode relates to one attempt in the 'Game Instance' (i.e., you finish # of laps or you crash)
+            self.steps_done = 0
+            self.episode_durations = []
+
+            if torch.cuda.is_available() and TRAIN_INFER_TOGGLE == "TRAIN":
+                self.num_episodes = 600
+            else:
+                self.num_episodes = 50
+
+            # Create instance of optimizer and replay memory object
+            self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
+            self.memory = ReplayMemory(self.MEMORY_FRAMES)
+            
+        # If not training the model, can simply load existing parameters for run
+        elif TRAIN_INFER_TOGGLE == "INFER":
             self.policy_net.load_state_dict(torch.load('/assets/nn_params/Policy_Net_Params-datetime'))
-            self.target_net.load_state_dict(torch.load('/assets/nn_params/Policy_Net_Params-datetime'))
 
-        # Create instance of optimizer and replay memory object
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
-        self.memory = ReplayMemory(self.MEMORY_FRAMES)
-
-        if torch.cuda.is_available():
-            self.num_episodes = 600
         else:
-            self.num_episodes = 50
+            print("***ALERT*** Please ensure 'TRAIN_INFER_TOGGLE' is set to either 'TRAIN' or 'INFER'")
+
+
+    def run_trained_model(self, state):
+        """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
+        # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)
+        max_index = self.policy_net(state).max(1)[1].item()
+        inferred_action = [0] * self.N_ACTIONS
+        inferred_action[max_index] = 1
+        return inferred_action
 
 
     def select_action(self, state):
@@ -115,12 +123,6 @@ class DQN_Model():
             plt.plot(means.numpy())
 
         plt.pause(0.001)  # pause a bit so that plots are updated
-        if is_ipython:
-            if not show_result:
-                display.display(plt.gcf())
-                display.clear_output(wait=True)
-            else:
-                display.display(plt.gcf())
 
 
     def plt_model(self):
@@ -147,7 +149,7 @@ class DQN_Model():
         non_final_next_states = torch.cat([s for s in batch.next_state
                                                     if s is not None])
         state_batch = torch.cat(batch.state)        # Outputs a tensor of dim 11 x 128 (i.e., STATE x BATCH)
-        action_batch = torch.cat(batch.action)      # Outputs a tensor of dim 5 x 128 (i.e., ACTION x BATCH)
+        action_batch = torch.cat(batch.action)      # Outputs a tensor of dim 9 x 128 (i.e., ACTION x BATCH)
         reward_batch = torch.cat(batch.reward)      # Outputs a tensor of dim 128
 
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the

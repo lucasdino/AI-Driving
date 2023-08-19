@@ -23,6 +23,7 @@ class Racecar:
         self.linesegments = []
         self.vision_lines = []
         
+        # In 'game.py', when a class of 'racegame' is created, the model inputs are instantiated so modelinputs exist prior to any functions being called
         self.modelinputs = {
             "vision_distances": [],
             "angle": radians(self.angle),
@@ -112,7 +113,18 @@ class Racecar:
         return False
 
 
-    def vision_line_distance(self, racetrack_line):
+    def return_model_inputs(self):
+        """Function to convert the 'model inputs' dictionary into a 1-D array"""
+        flat_list = []
+        for key, value in self.modelinputs:
+            if isinstance(value, list):
+                flat_list.extend(value)
+            else:
+                flat_list.append(value)
+        return flat_list
+
+
+    def calculate_vision_lines(self, racetrack_line):
         """
         Calculates the distance to the nearest racetrack line for vision lines.
         Updates self.visiondist and self.visionlines.

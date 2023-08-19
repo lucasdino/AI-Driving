@@ -22,7 +22,7 @@ class RaceGame:
     CRASHPENALTY = 1000
     LAPS = 1
 
-    def __init__(self, attempt, wins, draw_toggle, racetrack_reward_toggle, human_ai_toggle, train_infer_toggle):
+    def __init__(self, attempt, wins, draw_toggle, racetrack_reward_toggle, human_ai_toggle, train_infer_toggle, model):
         """Initialize the game, including Pygame, screen, sprites, and other game parameters."""
 
         self._initialize_pygame()
@@ -38,10 +38,13 @@ class RaceGame:
         self.game_background = GameBackground(load_sprite("RacetrackSprite", False))
         self.racecar = Racecar((72,356), shrink_sprite(load_sprite("RacecarSprite"), 0.15), (0,0))
         self.racetrack = Racetrack(draw_toggle, racetrack_reward_toggle)
-
         self.coinsprite = shrink_sprite(load_sprite("MarioCoin"), 0.015) 
         self.rewardcoin = RewardCoin(self.racetrack.rewards[0], self.coinsprite)
         
+        # Calculate first instance of state to ensure model inputs are set and can be passed through to the neural net if necessary
+        self.racecar.calculate_reward_line(self.rewardcoin)
+        self.racecar.calculate_vision_lines(self.racetrack.lines)
+
         # Set game states and timers
         self.running = True
         self.score = 0
@@ -59,6 +62,9 @@ class RaceGame:
         if self.draw_toggle:
             self.drawing_module = Drawing()
         else: self.drawing_module = None
+
+        # If set to 'HUMAN', model=none. Otherwise, creates instance of the DQN model for later use
+        self.model = model
 
 
     def _initialize_pygame(self):
@@ -96,7 +102,7 @@ class RaceGame:
 
     def _update_racecar_env_vars(self):
         """Function to update racecar environment variables"""
-        self.racecar.vision_line_distance(self.racetrack.lines)
+        self.racecar.calculate_vision_lines(self.racetrack.lines)
         self.prior_reward_coin_distance = self.racecar.modelinputs['distance_to_reward']
         self.racecar.calculate_reward_line(self.rewardcoin)
 
@@ -112,8 +118,14 @@ class RaceGame:
             self.frame_action = keypress_to_action(pygame.key.get_pressed())
 
         elif self.human_ai_toggle == "AI":
-            # self.racecar.modelinputs / self.frame_action / self.rewardfunction
-            pass     
+            
+            # Handle inputs differently if model is set to training or if it is set to inference.
+            if self.train_infer_toggle == "TRAIN":
+                pass
+
+            elif self.train_infer_toggle == "INFER":
+                self.frame_action = self.model.run_trained_model(self.racecar.return_model_inputs)
+   
         
         # Handle movement based on input from either human or AI, then update racecar velocity and position
         # Once done, update the environment data (vision lines, reward lines)
