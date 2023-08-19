@@ -1,11 +1,9 @@
 # Direction from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 import math
 import random
-import matplotlib
-import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
-from dqn_modules import ReplayMemory, DQN, Transition, random_motion, instantiate_hardware
+from dqn_modules import ReplayMemory, DQN, Transition, instantiate_hardware, random_action_motion, convert_action_tensor, save_loss_to_csv
 import datetime
 
 import torch
@@ -13,9 +11,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-
-# Enable interactive mode - i.e., dynamic updates for plot so that the function is continuously plotted
-plt.ion()
 
 
 class DQN_Model():
@@ -44,8 +39,11 @@ class DQN_Model():
     def _init_(self, TRAIN_INFER_TOGGLE):
         """Instantaite class of DQN Model"""
         
+        # Create reference to racegame that will be passed through each time a new instance of racegame is created 
+        self.racegame = None
+        
         # Leverage GPU if exists, otherwise use CPU
-        self.device = instantiate_hardware()
+        self.device, self.num_episodes = instantiate_hardware()
 
         # Create neural nets of input size of N_Observations and output size of N_actions. Load to GPU if GPU is available
         self.policy_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
@@ -57,15 +55,11 @@ class DQN_Model():
             self.target_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
-            # Create vars to track training steps / list to plot loss in real-time
+            # Create vars to track training steps / list to show loss in real-time
             # One episode relates to one attempt in the 'Game Instance' (i.e., you finish # of laps or you crash)
             self.steps_done = 0
             self.episode_durations = []
-
-            if torch.cuda.is_available() and TRAIN_INFER_TOGGLE == "TRAIN":
-                self.num_episodes = 600
-            else:
-                self.num_episodes = 50
+            self.loss_calculations = []
 
             # Create instance of optimizer and replay memory object
             self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
@@ -79,13 +73,16 @@ class DQN_Model():
             print("***ALERT*** Please ensure 'TRAIN_INFER_TOGGLE' is set to either 'TRAIN' or 'INFER'")
 
 
+    def racegame_setter(self, racegame):
+        """Simple setter function to pass through a racegame each time a new racegame instance is created"""
+        self.racegame = racegame
+
+
     def run_trained_model(self, state):
         """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
         # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)
-        max_index = self.policy_net(state).max(1)[1].item()
-        inferred_action = [0] * self.N_ACTIONS
-        inferred_action[max_index] = 1
-        return inferred_action
+        action_tensor = self.policy_net(state).max(1)[1]
+        return convert_action_tensor(action_tensor)
 
 
     def select_action(self, state):
@@ -99,38 +96,27 @@ class DQN_Model():
                 # t.max(1) will return the largest column value of each row.
                 # second column on max result is index of where max element was
                 # found, so we pick action with the larger expected reward.
-                return self.policy_net(state).max(1)[1].view(1, 1)
+                action_tensor = self.policy_net(state).max(1)[1]
+                return convert_action_tensor(action_tensor)
         else:
-            return torch.tensor([random_motion(self.N_ACTIONS)], device=self.device, dtype=torch.long)
+            return random_action_motion
 
 
-    def plot_durations(self, show_result=False):
-        """Called on to continuously update the loss graph"""
-        plt.figure(1)
+    def print_progress(self):
+        """Function to print training progress to the console every 'print_freq' episodes"""
+        print_freq = 5
+        rolling_average = 100
+        
         durations_t = torch.tensor(self.episode_durations, dtype=torch.float)
-        if show_result:
-            plt.title('Result')
-        else:
-            plt.clf()
-            plt.title('Training...')
-        plt.xlabel('Episode')
-        plt.ylabel('Duration')
-        plt.plot(durations_t.numpy())
-        # Take 100 episode averages and plot them too
-        if len(durations_t) >= 100:
-            means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
-            plt.plot(means.numpy())
+        episodes_done = len(durations_t)
 
-        plt.pause(0.001)  # pause a bit so that plots are updated
+        if (len(durations_t) % print_freq == 0) or (episodes_done == self.num_episodes-1):
+            if len(self.loss_calculations) >= 100:
+                avg_loss = self.loss_calculations[-rolling_average:].mean().item()
+            else:
+                avg_loss = self.loss_calculations[len(self.loss_calculations):].mean().item()
 
-
-    def plt_model(self):
-        """Called when model is completed training to display loss"""
-        print('Complete')
-        self.plot_durations(show_result=True)
-        plt.ioff()
-        plt.show()
+            print(f"Episode {episodes_done}/{self.num_episodes} - Avg Loss: {avg_loss:.3f}")
 
 
     def optimize_model(self):
@@ -172,6 +158,9 @@ class DQN_Model():
         criterion = nn.SmoothL1Loss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
+        # Append loss calculation for later printout
+        self.loss_calculations.append(loss.item())
+
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
@@ -181,20 +170,23 @@ class DQN_Model():
 
 
     def train_model(self):
+        
+        # Each episode refers to an 'attempt' in the game (i.e., car crashes, finishes # of laps, or is cut off because of time limit)
         for i_episode in range(self.num_episodes):
-            # Initialize the environment and get its state
-            state, info = env.reset()
+            
+            state = self.racegame.racecar.return_model_state()
             state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+        
             for t in count():
                 action = self.select_action(state)
-                observation, reward, terminated, truncated, _ = env.step(action.item())
+                state, reward, crashed, laps_finished, time_limit = self.racegame.ai_train_step(action)
                 reward = torch.tensor([reward], device=self.device)
-                done = terminated or truncated
+                done = crashed or laps_finished or time_limit
 
-                if terminated:
+                if crashed:
                     next_state = None
                 else:
-                    next_state = torch.tensor(observation, dtype=torch.float32, device=self.device).unsqueeze(0)
+                    next_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
 
                 # Store the transition in memory
                 self.memory.push(state, action, next_state, reward)
@@ -215,10 +207,10 @@ class DQN_Model():
 
                 if done:
                     self.episode_durations.append(t + 1)
-                    self.plot_durations()
                     break
 
-        # Export neural net weights
+        # Export neural net weights and loss
         formatted_datetime = datetime.datetime.now().strftime("%m.%d.%y-%H.%M")
+        save_loss_to_csv(self.loss_calculations, "Loss_Calculations-" + formatted_datetime)
         self.policy_net.export_parameters("Policy_Net_Params-" + formatted_datetime)
         self.target_net.export_parameters("Target_Net_Params-" + formatted_datetime)

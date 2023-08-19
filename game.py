@@ -17,10 +17,10 @@ class RaceGame:
     DRAG = 0.9
 
     # Define reward function metrics
-    DECAYRATE = 0.99
     COINREWARD = 500
     CRASHPENALTY = 1000
     LAPS = 1
+    TIME_LIMIT = LAPS * 30
 
     def __init__(self, attempt, wins, draw_toggle, racetrack_reward_toggle, human_ai_toggle, train_infer_toggle, model):
         """Initialize the game, including Pygame, screen, sprites, and other game parameters."""
@@ -42,11 +42,11 @@ class RaceGame:
         self.rewardcoin = RewardCoin(self.racetrack.rewards[0], self.coinsprite)
         
         # Calculate first instance of state to ensure model inputs are set and can be passed through to the neural net if necessary
-        self.racecar.calculate_reward_line(self.rewardcoin)
-        self.racecar.calculate_vision_lines(self.racetrack.lines)
+        self._update_racecar_env_vars()
 
         # Set game states and timers
         self.running = True
+        self.game_termination_reason = "N/a"
         self.score = 0
         self.rewardfunction = 0
         self.rewardchange = 0
@@ -63,7 +63,7 @@ class RaceGame:
             self.drawing_module = Drawing()
         else: self.drawing_module = None
 
-        # If set to 'HUMAN', model=none. Otherwise, creates instance of the DQN model for later use
+        # Stores instance of DQN model that was passed through if set to 'AI'. If set to 'HUMAN', model was set as 'none'
         self.model = model
 
 
@@ -75,7 +75,7 @@ class RaceGame:
 
     def human_main_loop(self):
         """Main game loop that handles input, updates game logic, and draws game objects. Also caps the frame rate at 40 fps."""
-        self._handle_input()
+        self._handle_human_input()
         self._update_game_logic()
         self._render_game()
         self.clock.tick(40)
@@ -84,21 +84,34 @@ class RaceGame:
             self.attempt += 1
 
 
-    def ai_main_loop(self):
-        """Main game loop if set to "AI" - depending on what 'TRAIN_INFER_TOGGLE' is set to will determine how the neural net will be interacted with"""
-        # Throw message if draw toggle is turned on and trying to run with model
-        if self.draw_toggle:
-            print("***ALERT*** You are trying to run the neural net while draw_toggle is set to 'TRUE'. Please switch to 'HUMAN' if you are trying to draw new rewards / lines or turn off the 'draw_toggle'")
-            quit()
+    def ai_infer_loop(self):
+        """Main game loop if set to "AI" and 'INFER'. Calls '_handle_ai_input()' to leverage neural network for game inputs"""
+        self._handle_ai_input()
+        self._update_game_logic()
+        self._render_game()
+        self.clock.tick(40)
+
+        if self.running == False:
+            self.attempt += 1
+
+
+    def ai_train_step(self, action):
+        """Method called by AI to step through the game one frame at a time. Returns all necessary variables for training as well"""
+        self._handle_ai_input(action)
+        self._update_game_logic()
+        self._render_game()
         
-        if self.train_infer_toggle == "TRAIN":
-            pass
-        elif self.train_infer_toggle == "INFER":
-            pass
-        else: 
-            print("***ALERT*** Please make sure the 'TRAIN_INFER_TOGGLE' in '__main__.py' is set to either 'TRAIN' or 'INFER'.")
-            quit()
-        
+        if self.running == False:
+            self.attempt += 1
+
+        state = self.racecar.return_model_state
+        reward = self.score
+        crashed = True if self.game_termination_reason == "Crash" else False
+        laps_finished = True if self.game_termination_reason == "Lap(s) Completed" else False
+        time_limit = True if self.game_termination_reason == "Time Limit" else False
+
+        return state, reward, crashed, laps_finished, time_limit
+
 
     def _update_racecar_env_vars(self):
         """Function to update racecar environment variables"""
@@ -107,25 +120,31 @@ class RaceGame:
         self.racecar.calculate_reward_line(self.rewardcoin)
 
 
-    def _handle_input(self):
+    def _handle_human_input(self):
         """
         Handle user input events such as closing the window, drawing events, and keyboard key presses.
         Also updates the racecar's motion based on the keys pressed.
         """
         game_exit_or_drawing(pygame.event.get(), self.draw_toggle, self.racetrack_reward_toggle, self.drawing_module)
-               
-        if self.human_ai_toggle == "HUMAN":
-            self.frame_action = keypress_to_action(pygame.key.get_pressed())
+        self.frame_action = keypress_to_action(pygame.key.get_pressed())
 
-        elif self.human_ai_toggle == "AI":
-            
-            # Handle inputs differently if model is set to training or if it is set to inference.
-            if self.train_infer_toggle == "TRAIN":
-                pass
+        # Handle movement then update racecar velocity and position. Once done, update the environment data (vision lines, reward lines)
+        action_to_motion(self.racecar, self.frame_action, self.ACCELERATION, self.TURN_SPEED)
+        self.racecar.apply_drag(self.DRAG)
+        self._update_racecar_env_vars()
 
-            elif self.train_infer_toggle == "INFER":
-                self.frame_action = self.model.run_trained_model(self.racecar.return_model_inputs)
-   
+
+    def _handle_ai_input(self, training_action=None):
+        """
+        Handle driving from AI while still allowing events such as closing the window, drawing events, and keyboard key presses.
+        Also updates the racecar's motion based on the keys pressed.
+        """
+        game_exit_or_drawing(pygame.event.get(), self.draw_toggle, self.racetrack_reward_toggle, self.drawing_module)
+        
+        if self.train_infer_toggle == "TRAIN":
+            self.frame_action = training_action
+        elif self.train_infer_toggle == "INFER":
+            self.frame_action = self.model.run_trained_model(self.racecar.return_model_state)
         
         # Handle movement based on input from either human or AI, then update racecar velocity and position
         # Once done, update the environment data (vision lines, reward lines)
@@ -147,6 +166,7 @@ class RaceGame:
         for line in self.racetrack.lines:
             if self.racecar.check_line_collision(line): 
                 self.running = False
+                self.game_termination_reason = "Crash"
                 _car_survived_frame = False
                 self.rewardchange -= self.CRASHPENALTY
         
@@ -164,6 +184,7 @@ class RaceGame:
                 self.score += 1
                 if self.score == self.LAPS * self.coins_per_lap:
                     self.running = False
+                    self.game_termination_reason = "Lap(s) Completed"
                     self.wins += 1
                 
                 self.rewardchange += self.COINREWARD
@@ -171,8 +192,13 @@ class RaceGame:
                 self.rewardcoin = RewardCoin(self.racetrack.rewards[_next_reward_coin], self.coinsprite)
                 break
         
-        # Apply decay factor to reward function
-        self.rewardfunction = (self.rewardfunction + self.rewardchange) *self.DECAYRATE
+        # Check for violation of time limit
+        if ((pygame.time.get_ticks() - self.start_time) // 1000) > self.TIME_LIMIT:
+            self.running = False
+            self.game_termination_reason = "Time Limit"
+
+        # Update score
+        self.rewardfunction = (self.rewardfunction + self.rewardchange)
 
 
     def _render_game(self):

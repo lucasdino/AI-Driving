@@ -19,7 +19,6 @@ else:
 if __name__ == "__main__":
 
     while True:
-
         # Define RaceGame object and pass through metavariables    
         racegame = RaceGame(attempts, wins, DRAW_TOGGLE, RACETRACK_REWARD_TOGGLE, HUMAN_AI_TOGGLE, TRAIN_INFER_TOGGLE, model)
 
@@ -27,9 +26,15 @@ if __name__ == "__main__":
             while racegame.running:
                 racegame.human_main_loop()
         
-        elif HUMAN_AI_TOGGLE == "AI":    
-            while racegame.running:
-                racegame.ai_main_loop()
+        elif HUMAN_AI_TOGGLE == "AI":  
+            if TRAIN_INFER_TOGGLE == "TRAIN":
+                while racegame.running:
+                    # Don't call racegame.ai_loop() since we will be stepping through during model training from the dqn_model file
+                    model.racegame_setter(racegame)
+
+            elif TRAIN_INFER_TOGGLE == "INFER":
+                while racegame.running:
+                    racegame.ai_infer_loop()
 
         # Once main game loop breaks, pull out the updated values for 'attempt' and for 'wins'
         attempts = racegame.attempt

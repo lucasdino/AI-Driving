@@ -113,7 +113,7 @@ class Racecar:
         return False
 
 
-    def return_model_inputs(self):
+    def return_model_state(self):
         """Function to convert the 'model inputs' dictionary into a 1-D array"""
         flat_list = []
         for key, value in self.modelinputs:
