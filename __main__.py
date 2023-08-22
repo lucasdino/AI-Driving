@@ -4,7 +4,7 @@ from game import RaceGame
 # TRAIN_INFER_TOGGLE - set 'TRAIN' if model is training; otherwise, set 'INFER' if model weights are in 'assets/nn_params' and you'd like model to drive
 # DRAW_TOGGLE - Set 'True' to enable drawing of either the racetrack or rewards
 # RACETRACK_REWARD_TOGGLE - If DRAW_TOGGLE = True, then set as 'RACETRACK' or 'REWARD' depending on what you'd like to draw with the mouse in-game
-HUMAN_AI_TOGGLE = "HUMAN"
+HUMAN_AI_TOGGLE = "AI"
 TRAIN_INFER_TOGGLE = "TRAIN"
 DRAW_TOGGLE = False
 RACETRACK_REWARD_TOGGLE = "RACETRACK"

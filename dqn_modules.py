@@ -96,7 +96,7 @@ def random_action_motion(action_space_size, last_action):
             action_list[2] = 1
             return action_list
         else:
-            prev_action_index = last_action(1)
+            prev_action_index = last_action.index(1)
             rand = random.random()
             # Bias toward having car do the same action as before. Prevents super wobbly behavior. Otherwise add 1 / subtract 1 (min/max to prevent OOB)
             if rand < 0.5:
@@ -105,6 +105,8 @@ def random_action_motion(action_space_size, last_action):
                 action_list[max(prev_action_index-1, 0)] = 1
             else:
                 action_list[min(prev_action_index+1, action_space_size-1)] = 1
+            
+            return action_list
         
 
 

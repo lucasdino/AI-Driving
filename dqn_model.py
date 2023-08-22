@@ -28,7 +28,7 @@ class DQN_Model:
     BATCH_SIZE = 128
     GAMMA = 0.99
     EPS_START = 0.9
-    EPS_END = 0.3
+    EPS_END = 0.1
     EPS_DECAY = 10000
     TAU = 0.003
     LR = 1e-3
@@ -37,7 +37,7 @@ class DQN_Model:
     MEMORY_FRAMES = 10000
     last_action = None
 
-    RENDER = True
+    RENDER = False
     LOSS_CALC_INDEX = 0
 
 
@@ -215,11 +215,14 @@ class DQN_Model:
                     target_net_state_dict[key] = policy_net_state_dict[key]*self.TAU + target_net_state_dict[key]*(1-self.TAU)
                 self.target_net.load_state_dict(target_net_state_dict)
 
+                self.last_action = action
+                
                 if done:
                     self.coins_since_last_print_window += self.racegame_session.racegame.coins
                     self.racegame_session.reset_racegame()
                     self.racegame_episodes = self.racegame_session.attempts
                     self.print_progress()
+                    self.last_action = None
                     break
         
         # When done, export parameters and loss data
