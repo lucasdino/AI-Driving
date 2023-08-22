@@ -81,34 +81,27 @@ def instantiate_hardware():
 
 def random_action_motion(action_space_size, last_action):
     """Function provides random motion to car"""
-    no_action_threshold = 0.9
     rand = random.random()
     action_list = [0]*action_space_size
-    
-    # Biased toward not doing 'nothing' - i.e., actually moving in a direction
-    if rand > no_action_threshold:
-        action_list[0] = 1
-        return action_list
-    # Output to go in some direction
-    else:
-        # Make car go forward
-        if last_action == None:
-            action_list[2] = 1
-            return action_list
-        else:
-            prev_action_index = last_action.index(1)
-            rand = random.random()
-            # Bias toward having car do the same action as before. Prevents super wobbly behavior. Otherwise add 1 / subtract 1 (min/max to prevent OOB)
-            if rand < 0.5:
-                action_list[prev_action_index] = 1
-            elif rand < 0.75:
-                action_list[max(prev_action_index-1, 0)] = 1
-            else:
-                action_list[min(prev_action_index+1, action_space_size-1)] = 1
-            
-            return action_list
-        
+    action_index = 0
 
+    # Output to go in some direction; bias going forward (Up is index 2, but adding 1 to everything for quick iteration / prototyping)
+    if last_action == None:        
+        action_index = 2
+    else:
+        prev_action_index = last_action.index(1)
+
+        # Bias toward having car do the same action as before. Prevents super wobbly behavior. Otherwise add 1 / subtract 1 (min/max to prevent OOB)
+        if rand < 0.9:
+            action_index = prev_action_index
+        elif rand < 0.95:
+            action_index = max(prev_action_index-1, 0)
+        else:
+            action_index = min(prev_action_index+1, action_space_size-1)
+        
+    action_list[action_index] = 1
+    return action_list
+    
 
 def convert_action_tensor(action_tensor, action_space_size):
     """Model that takes in an action tensor and returns a list that can be interpreted by the game"""

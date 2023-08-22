@@ -20,20 +20,20 @@ class DQN_Model:
     # GAMMA is the discount factor as mentioned in the previous section
     # EPS_START is the starting value of epsilon
     # EPS_END is the final value of epsilon
-    # EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
+    # EPS_DECAY lets you add a number of steps of semi-random motion before you start amortizing semi-randomization with EPS_DECAY
     # TAU is the update rate of the target network
     # LR is the learning rate of the ``AdamW`` optimizer
     # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Left, Right, Down, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
     BATCH_SIZE = 128
-    GAMMA = 0.99
+    GAMMA = 0.97
     EPS_START = 0.9
     EPS_END = 0.1
     EPS_DECAY = 10000
-    TAU = 0.003
-    LR = 1e-3
-    N_ACTIONS = 9
-    N_OBSERVATIONS = 12
+    TAU = 0.01
+    LR = 3e-4
+    N_ACTIONS = 5
+    N_OBSERVATIONS = 10
     MEMORY_FRAMES = 10000
     last_action = None
 
@@ -88,14 +88,14 @@ class DQN_Model:
         """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
         # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)
         action_tensor = self.policy_net(state).max(1)[1]
-        return convert_action_tensor(action_tensor)
+        return convert_action_tensor(action_tensor, self.N_ACTIONS)
 
 
     def select_action(self, state):
         """Pass through environment state and return action (i.e., driving motion)"""
         sample = random.random()
         eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * \
-            math.exp(-1. * self.steps_done / self.EPS_DECAY)
+            math.exp(-1. * self.steps_done / (self.EPS_DECAY))
         self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():

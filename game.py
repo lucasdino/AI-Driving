@@ -5,7 +5,7 @@ from models import GameBackground, Racecar, Racetrack, RewardCoin
 from drawing_module import Drawing
 
 
-DISPLAY_HITBOXES = False                 # Toggle to turn on displaying hitboxes or not
+DISPLAY_HITBOXES = True                 # Toggle to turn on displaying hitboxes or not
 DISPLAY_ARROWS = True                   # Toggle to turn on the arrow key displays
 SCREEN_SIZE = (800, 600)                # Define the game screen size
 
@@ -18,8 +18,8 @@ class RaceGame:
 
     # Define reward function metrics
     APPROACHING_COIN_REWARD = 10
-    COINREWARD = 100
-    CRASHPENALTY = 100
+    COINREWARD = 500
+    CRASHPENALTY = 500
     LAPS = 1
     SCORE_DECAY_RATE = 1
     TIME_LIMIT = LAPS * 15
@@ -121,7 +121,6 @@ class RaceGame:
         self.racecar.calculate_vision_lines(self.racetrack.lines)
         self.prior_reward_coin_distance = self.racecar.modelinputs['distance_to_reward']
         self.racecar.calculate_reward_line(self.rewardcoin)
-        self.racecar.modelinputs['velocity'] = self.racecar.velocity
         
 
     def _handle_human_input(self):
@@ -136,6 +135,7 @@ class RaceGame:
         action_to_motion(self.racecar, self.frame_action, self.ACCELERATION, self.TURN_SPEED)
         self.racecar.apply_drag(self.DRAG)
         self._update_racecar_env_vars()
+        self.racecar.return_clean_model_state()
 
 
     def _handle_ai_input(self, training_action=None):
@@ -177,15 +177,17 @@ class RaceGame:
         # If car is still alive after the move, add one to the reward function
         if self.running and _car_survived_frame:
             # Making function to add to reward function if car covers > 1 pixels closer to reward in a frame)
-            if self.prior_reward_coin_distance > (1 + self.racecar.modelinputs['distance_to_reward']):
+            if self.prior_reward_coin_distance - 1 > self.racecar.modelinputs['distance_to_reward']:
                 self.rewardchange += self.APPROACHING_COIN_REWARD
-
+            if self.prior_reward_coin_distance + 1 < self.racecar.modelinputs['distance_to_reward']:
+                self.rewardchange -= self.APPROACHING_COIN_REWARD
+ 
         # Check for collisions with the coins; if so add to score / reward function
         for line in self.rewardcoin.lines:
             if self.racecar.check_line_collision(line):
                 # Update score (coin count). If you hit the # of laps, then end the game and add a win
                 self.coins += 1
-                if self.coins == self.LAPS * self.coins_per_lap:
+                if self.coins == (self.LAPS * self.coins_per_lap)+1:
                     self.running = False
                     self.game_termination_reason = "Lap(s) Completed"
                     self.wins += 1

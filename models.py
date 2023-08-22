@@ -26,10 +26,8 @@ class Racecar:
         # In 'game.py', when a class of 'racegame' is created, the model inputs are instantiated so modelinputs exist prior to any functions being called
         self.modelinputs = {
             "vision_distances": [],
-            "angle": radians(self.angle),
             "angle_to_reward": 0,
-            "distance_to_reward": 0,
-            "velocity": 0
+            "distance_to_reward": 0
         }
 
 
@@ -56,7 +54,7 @@ class Racecar:
     def _draw_reward_line(self, screen):
         """Draw line going to next coin to ensure calculation is correct"""
         end_point = (
-            self.position[0] - self.modelinputs['distance_to_reward'] * cos(self.modelinputs['angle_to_reward']),
+            self.position[0] + self.modelinputs['distance_to_reward'] * cos(self.modelinputs['angle_to_reward']),
             self.position[1] - self.modelinputs['distance_to_reward'] * sin(self.modelinputs['angle_to_reward']),
         )   
         pygame.draw.line(screen, (0, 255, 255), self.position, end_point, 2)
@@ -120,16 +118,21 @@ class Racecar:
         for key, value in self.modelinputs.items():
             
             # Start by cleaning the data so we pass through data in roughly the same scale
-            if "angle" in key:
-                value = (value / (2*pi))%1
+            # Angle to reward needs to be converted so that it is relative to where the angle of the car is pointing.
+            # If car is facing the reward, angle_to_reward should be 0. As this rotates away, it will go to 1 or -1, where at 180 degrees there is a discontinuity and it jumps between 1 and -1
+            # This is helpful as the model can learn that always applying 'left' will decrease this value, or vice-versa for right
+            # Since the model is only aware of the current state (not prior states), it won't need to know anything other than this value
+            if key == "angle_to_reward":
+                t_1 = (value+pi)
+                t_2 = (radians(self.angle)+pi)%(2*pi)
+                value = (atan2(sin(t_1 - t_2), cos(t_1 - t_2)))/pi
+                
             elif "distance" in key:
                 if isinstance(value, list):
                     value = [exp(-(x/100)) for x in value]
                 else: 
                     value = exp(-(value/100))
-            elif "velocity" in key:
-                value = sqrt(value[0]**2+value[1]**2)
-            
+
             # Next, append the value to 
             if isinstance(value, list):
                 flat_clean_list.extend(value)
@@ -167,8 +170,9 @@ class Racecar:
         dx = racecar_x - rewardcoin_x
         dy = racecar_y - rewardcoin_y
         
-        # Calculate angle in radians between the two pointss; round to calc precision
-        self.modelinputs['angle_to_reward'] = round(atan2(dy, dx), self.CALC_DIST_PRECISION)
+        # Calculate angles for the car and the angle to the reward coin in radians; will convert this to sine when cleaning data later on
+        t_1 = atan2(dy,-dx)
+        self.modelinputs['angle_to_reward'] = round(t_1, self.CALC_ANGLE_PRECISION)
         
         # Calculate the distance between the two points; round to calc precision
         self.modelinputs['distance_to_reward'] = round(hypot(dx, dy), self.CALC_DIST_PRECISION)
@@ -308,7 +312,8 @@ class GameBackground:
         screen.blit(s, (bg_rect.x, bg_rect.y))  # (0,0) are the top-left coordinates
 
         # Create temporary binary array for keys to pass through which should be highlighted red vs. grey
-        for i, _ in enumerate(['Left', 'Up', 'Right', 'Down', 'Up_Left', 'Up_Right', 'Down_Left', 'Down_Right']):
+        for i, _ in enumerate(['Left', 'Up', 'Right', 'Down']):
+        # for i, _ in enumerate(['Left', 'Up', 'Right', 'Down', 'Up_Left', 'Up_Right', 'Down_Left', 'Down_Right']):
             if keypress[i+1] == 1 and i < 4:
                 converted_keypress[i] = 1
             elif keypress[i+1] == 1 and i == 4:           # Up_Left

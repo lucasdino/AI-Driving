@@ -114,18 +114,18 @@ def action_to_motion(racecar, action, acceleration, turn_speed):
         racecar.turn_right(turn_speed)
     if action[4]:
         racecar.brake(acceleration)
-    if action[5]:
-        racecar.accelerate(acceleration)
-        racecar.turn_left(turn_speed)
-    if action[6]:
-        racecar.accelerate(acceleration)
-        racecar.turn_right(turn_speed)
-    if action[7]:
-        racecar.brake(acceleration)
-        racecar.turn_left(turn_speed)
-    if action[8]:
-        racecar.brake(acceleration)
-        racecar.turn_right(turn_speed)
+    # if action[5]:
+    #     racecar.accelerate(acceleration)
+    #     racecar.turn_left(turn_speed)
+    # if action[6]:
+    #     racecar.accelerate(acceleration)
+    #     racecar.turn_right(turn_speed)
+    # if action[7]:
+    #     racecar.brake(acceleration)
+    #     racecar.turn_left(turn_speed)
+    # if action[8]:
+    #     racecar.brake(acceleration)
+    #     racecar.turn_right(turn_speed)
 
 
 def game_exit_or_drawing(events, draw_toggle, racetrack_reward_toggle, drawing_module):
