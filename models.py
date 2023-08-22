@@ -308,21 +308,21 @@ class GameBackground:
         screen.blit(s, (bg_rect.x, bg_rect.y))  # (0,0) are the top-left coordinates
 
         # Create temporary binary array for keys to pass through which should be highlighted red vs. grey
-        for i, _ in enumerate(['Up', 'Down', 'Left', 'Right', 'Up_Left', 'Up_Right', 'Down_Left', 'Down_Right']):
+        for i, _ in enumerate(['Left', 'Up', 'Right', 'Down', 'Up_Left', 'Up_Right', 'Down_Left', 'Down_Right']):
             if keypress[i+1] == 1 and i < 4:
                 converted_keypress[i] = 1
             elif keypress[i+1] == 1 and i == 4:           # Up_Left
-                converted_keypress = [1,0,1,0]
+                converted_keypress = [1,1,0,0]
             elif keypress[i+1] == 1 and i == 5:           # Up_Right
-                converted_keypress = [1,0,0,1]
-            elif keypress[i+1] == 1 and i == 6:           # Down_Left
                 converted_keypress = [0,1,1,0]
+            elif keypress[i+1] == 1 and i == 6:           # Down_Left
+                converted_keypress = [1,0,0,1]
             elif keypress[i+1] == 1 and i == 7:           # Down_Right
-                converted_keypress = [0,1,0,1]
+                converted_keypress = [0,0,1,1]
         
 
         # Draw keys and arrows
-        for i, key in enumerate(['Up', 'Down', 'Left', 'Right']):
+        for i, key in enumerate(['Left', 'Up', 'Right', 'Down']):
             color = RED if converted_keypress[i] else GRAY  # i+1 because keypress[0] is for 'None'
             
             # Draw key with black border

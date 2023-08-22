@@ -91,8 +91,8 @@ def keypress_to_action(keys):
     elif keys[pygame.K_UP] and keys[pygame.K_RIGHT]: action[6] = 1
     elif keys[pygame.K_DOWN] and keys[pygame.K_LEFT]: action[7] = 1
     elif keys[pygame.K_DOWN] and keys[pygame.K_RIGHT]: action[8] = 1
-    elif keys[pygame.K_UP]: action[1] = 1
-    elif keys[pygame.K_LEFT]: action[2] = 1
+    elif keys[pygame.K_LEFT]: action[1] = 1
+    elif keys[pygame.K_UP]: action[2] = 1
     elif keys[pygame.K_RIGHT]: action[3] = 1
     elif keys[pygame.K_DOWN]: action[4] = 1
     else: action[0] = 1
@@ -107,9 +107,9 @@ def action_to_motion(racecar, action, acceleration, turn_speed):
     if action[0]:
         pass    # Do nothing
     if action[1]:
-        racecar.accelerate(acceleration)
-    if action[2]:
         racecar.turn_left(turn_speed)
+    if action[2]:
+        racecar.accelerate(acceleration)
     if action[3]:
         racecar.turn_right(turn_speed)
     if action[4]:

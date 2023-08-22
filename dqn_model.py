@@ -26,17 +26,18 @@ class DQN_Model:
     # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Left, Right, Down, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
     BATCH_SIZE = 128
-    GAMMA = 0.8
+    GAMMA = 0.99
     EPS_START = 0.9
-    EPS_END = 0.1
+    EPS_END = 0.3
     EPS_DECAY = 10000
     TAU = 0.003
     LR = 1e-3
     N_ACTIONS = 9
     N_OBSERVATIONS = 12
     MEMORY_FRAMES = 10000
+    last_action = None
 
-    RENDER = False
+    RENDER = True
     LOSS_CALC_INDEX = 0
 
 
@@ -104,7 +105,7 @@ class DQN_Model:
                 action_tensor = self.policy_net(state).max(1)[1]
                 return convert_action_tensor(action_tensor, self.N_ACTIONS)
         else:
-            return random_action_motion(self.N_ACTIONS)
+            return random_action_motion(self.N_ACTIONS, self.last_action)
 
 
     def print_progress(self):
@@ -220,8 +221,13 @@ class DQN_Model:
                     self.racegame_episodes = self.racegame_session.attempts
                     self.print_progress()
                     break
+        
+        # When done, export parameters and loss data
+        self.export_params_and_loss()
 
-        # Export neural net weights and loss
+
+    def export_params_and_loss(self):
+        """Function to export neural net weights and loss"""
         formatted_datetime = datetime.datetime.now().strftime("%m.%d.%y-%H.%M")
         save_loss_to_csv(self.loss_calculations, "Loss_Calculations-" + formatted_datetime)
         self.policy_net.export_parameters("Policy_Net_Params-" + formatted_datetime)

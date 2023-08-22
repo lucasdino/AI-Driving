@@ -6,7 +6,7 @@ from drawing_module import Drawing
 
 
 DISPLAY_HITBOXES = False                 # Toggle to turn on displaying hitboxes or not
-DISPLAY_ARROWS = False                   # Toggle to turn on the arrow key displays
+DISPLAY_ARROWS = True                   # Toggle to turn on the arrow key displays
 SCREEN_SIZE = (800, 600)                # Define the game screen size
 
 class RaceGame:
@@ -18,8 +18,8 @@ class RaceGame:
 
     # Define reward function metrics
     APPROACHING_COIN_REWARD = 10
-    COINREWARD = 50
-    CRASHPENALTY = 50
+    COINREWARD = 100
+    CRASHPENALTY = 100
     LAPS = 1
     SCORE_DECAY_RATE = 1
     TIME_LIMIT = LAPS * 15

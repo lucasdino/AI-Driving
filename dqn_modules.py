@@ -36,12 +36,11 @@ class DQN(nn.Module):
 
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 64)
-        self.layer2 = nn.Linear(64, 64)
-        self.layer3 = nn.Linear(64, 64)
-        self.layer4 = nn.Linear(64, 64)
-        self.layer5 = nn.Linear(64, 64)
-        self.layer6 = nn.Linear(64, n_actions)
+        self.layer1 = nn.Linear(n_observations, 128)
+        self.layer2 = nn.Linear(128, 128)
+        self.layer3 = nn.Linear(128, 128)
+        self.layer4 = nn.Linear(128, 64)
+        self.layer5 = nn.Linear(64, n_actions)
 
     def forward(self, x):
         """
@@ -52,8 +51,7 @@ class DQN(nn.Module):
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
         x = F.relu(self.layer4(x))
-        x = F.relu(self.layer5(x))
-        return self.layer6(x)
+        return self.layer5(x)
     
     def export_parameters(self, filename):
         directory = './assets/nn_params/'
@@ -72,7 +70,7 @@ def instantiate_hardware():
     num_episodes = 0
     if torch.cuda.is_available():
         hardware = "cuda"
-        num_episodes = 5
+        num_episodes = 1000
     else:
         hardware = "cpu"
         num_episodes = 100
@@ -81,7 +79,7 @@ def instantiate_hardware():
     return torch.device(hardware), num_episodes
  
 
-def random_action_motion(action_space_size):
+def random_action_motion(action_space_size, last_action):
     """Function provides random motion to car"""
     no_action_threshold = 0.9
     rand = random.random()
@@ -93,8 +91,21 @@ def random_action_motion(action_space_size):
         return action_list
     # Output to go in some direction
     else:
-        action_list[random.randint(1,action_space_size-1)] = 1
-        return action_list
+        # Make car go forward
+        if last_action == None:
+            action_list[2] = 1
+            return action_list
+        else:
+            prev_action_index = last_action(1)
+            rand = random.random()
+            # Bias toward having car do the same action as before. Prevents super wobbly behavior. Otherwise add 1 / subtract 1 (min/max to prevent OOB)
+            if rand < 0.5:
+                action_list[prev_action_index] = 1
+            elif rand < 0.75:
+                action_list[max(prev_action_index-1, 0)] = 1
+            else:
+                action_list[min(prev_action_index+1, action_space_size-1)] = 1
+        
 
 
 def convert_action_tensor(action_tensor, action_space_size):
