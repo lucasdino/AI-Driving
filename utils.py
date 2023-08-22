@@ -78,9 +78,9 @@ def nearest_line_distance(center, angle, racetrack_line):
     if intersection is not None:
         return np.hypot(*np.subtract(center, intersection))
 
-    # If the intersection point is None, return infinity
+    # If the intersection point is None, return an arbitrarily large number to prevent future busts
     else:
-        return float('inf')
+        return 1000
 
 
 def keypress_to_action(keys):
@@ -92,9 +92,9 @@ def keypress_to_action(keys):
     elif keys[pygame.K_DOWN] and keys[pygame.K_LEFT]: action[7] = 1
     elif keys[pygame.K_DOWN] and keys[pygame.K_RIGHT]: action[8] = 1
     elif keys[pygame.K_UP]: action[1] = 1
-    elif keys[pygame.K_DOWN]: action[2] = 1
-    elif keys[pygame.K_LEFT]: action[3] = 1
-    elif keys[pygame.K_RIGHT]: action[4] = 1
+    elif keys[pygame.K_LEFT]: action[2] = 1
+    elif keys[pygame.K_RIGHT]: action[3] = 1
+    elif keys[pygame.K_DOWN]: action[4] = 1
     else: action[0] = 1
 
     return action
@@ -109,11 +109,11 @@ def action_to_motion(racecar, action, acceleration, turn_speed):
     if action[1]:
         racecar.accelerate(acceleration)
     if action[2]:
-        racecar.brake(acceleration)
-    if action[3]:
         racecar.turn_left(turn_speed)
-    if action[4]:
+    if action[3]:
         racecar.turn_right(turn_speed)
+    if action[4]:
+        racecar.brake(acceleration)
     if action[5]:
         racecar.accelerate(acceleration)
         racecar.turn_left(turn_speed)

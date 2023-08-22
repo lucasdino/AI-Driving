@@ -36,9 +36,12 @@ class DQN(nn.Module):
 
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, n_actions)
+        self.layer1 = nn.Linear(n_observations, 64)
+        self.layer2 = nn.Linear(64, 64)
+        self.layer3 = nn.Linear(64, 64)
+        self.layer4 = nn.Linear(64, 64)
+        self.layer5 = nn.Linear(64, 64)
+        self.layer6 = nn.Linear(64, n_actions)
 
     def forward(self, x):
         """
@@ -47,26 +50,32 @@ class DQN(nn.Module):
         """
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
-        return self.layer3(x)
+        x = F.relu(self.layer3(x))
+        x = F.relu(self.layer4(x))
+        x = F.relu(self.layer5(x))
+        return self.layer6(x)
     
     def export_parameters(self, filename):
-        directory = '/assets/nn_params/'
+        directory = './assets/nn_params/'
         os.makedirs(directory, exist_ok=True)
-        filepath = os.path.join(directory, filename)        
-        torch.save(self.state_dict(), filepath)
-        print("Model parameters exported successfully.")
+        filepath = os.path.join(directory, filename) 
+        try:
+            torch.save(self.state_dict(), filepath)
+            print("Model parameters exported successfully.")
+        except:
+            print("Model parameters failed to export.")
     
 
-def instantiate_hardware(self):
+def instantiate_hardware():
     """Function to load CUDA if GPU is available; otherwise use CPU""" 
     hardware = "tbu"
     num_episodes = 0
     if torch.cuda.is_available():
         hardware = "cuda"
-        num_episodes = 100
+        num_episodes = 5
     else:
         hardware = "cpu"
-        num_episodes = 50
+        num_episodes = 100
 
     print(f"Utilizing {hardware} for neural net hardware.")
     return torch.device(hardware), num_episodes
@@ -84,7 +93,7 @@ def random_action_motion(action_space_size):
         return action_list
     # Output to go in some direction
     else:
-        action_list[random.randint(1,len(action_list))] = 1
+        action_list[random.randint(1,action_space_size-1)] = 1
         return action_list
 
 
@@ -100,4 +109,4 @@ def save_loss_to_csv(loss_calculations, filename):
     with open(f'assets/loss_results/{filename}.csv', "w", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
         for loss in loss_calculations:
-            csv_writer.writerow(loss)
+            csv_writer.writerow([loss])

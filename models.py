@@ -1,7 +1,7 @@
 import pygame
 import csv
 import os
-from math import sin, cos, radians, atan2, hypot
+from math import sin, cos, radians, atan2, hypot, pi, exp, sqrt
 from pygame import Vector2, font, Surface
 from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance
 # from dqn_model import select_action
@@ -28,7 +28,8 @@ class Racecar:
             "vision_distances": [],
             "angle": radians(self.angle),
             "angle_to_reward": 0,
-            "distance_to_reward": 0
+            "distance_to_reward": 0,
+            "velocity": 0
         }
 
 
@@ -58,7 +59,7 @@ class Racecar:
             self.position[0] - self.modelinputs['distance_to_reward'] * cos(self.modelinputs['angle_to_reward']),
             self.position[1] - self.modelinputs['distance_to_reward'] * sin(self.modelinputs['angle_to_reward']),
         )   
-        pygame.draw.line(screen, (200, 100, 0), self.position, end_point, 2)
+        pygame.draw.line(screen, (0, 255, 255), self.position, end_point, 2)
 
 
     def move(self):
@@ -113,15 +114,28 @@ class Racecar:
         return False
 
 
-    def return_model_state(self):
+    def return_clean_model_state(self):
         """Function to convert the 'model inputs' dictionary into a 1-D array"""
-        flat_list = []
-        for key, value in self.modelinputs:
+        flat_clean_list = []
+        for key, value in self.modelinputs.items():
+            
+            # Start by cleaning the data so we pass through data in roughly the same scale
+            if "angle" in key:
+                value = (value / (2*pi))%1
+            elif "distance" in key:
+                if isinstance(value, list):
+                    value = [exp(-(x/100)) for x in value]
+                else: 
+                    value = exp(-(value/100))
+            elif "velocity" in key:
+                value = sqrt(value[0]**2+value[1]**2)
+            
+            # Next, append the value to 
             if isinstance(value, list):
-                flat_list.extend(value)
+                flat_clean_list.extend(value)
             else:
-                flat_list.append(value)
-        return flat_list
+                flat_clean_list.append(value)
+        return flat_clean_list
 
 
     def calculate_vision_lines(self, racetrack_line):
@@ -221,7 +235,7 @@ class RewardCoin:
         if display_hitboxes:
             # Coin hit box
             for line in self.lines:
-                pygame.draw.line(screen, (255, 0, 0), line[0], line[1], 3)
+                pygame.draw.line(screen, (0, 255, 255), line[0], line[1], 3)
             
         screen.blit(self.sprite, self.top_left)
 
@@ -247,12 +261,12 @@ class GameBackground:
         screen.blit(self.racetrack_background, (0,0))
         
         temp_scoreboard = self.scoreboard_bg.copy()
-        score_time_text = self.font.render(f"Time: {time}s        Score: {score:.2f}", True, (255, 255, 255))
+        score_time_text = self.font.render(f"Time: {time}s        Score: {score:.0f}", True, (255, 255, 255))
         attempt_wins_text = self.font.render(f"Attempt: {attempt}     Wins: {wins}", True, (255, 255, 255))
-        # FPS_attempt_text = self.font.render(f"FPS: {frame_rate}     Attempt: {attempt}", True, (255, 255, 255))
+        FPS_attempt_text = self.font.render(f"FPS: {frame_rate}     Attempt: {attempt}", True, (255, 255, 255))
         
         temp_scoreboard.blit(score_time_text, (10, 10))
-        temp_scoreboard.blit(attempt_wins_text, (10, 35))
+        temp_scoreboard.blit(FPS_attempt_text, (10, 35))
         screen.blit(temp_scoreboard, (screen.get_width() - 210, 10))
 
 
