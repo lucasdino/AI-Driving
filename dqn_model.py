@@ -90,10 +90,16 @@ class DQN_Model:
     def run_model_inference(self, state):
         """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
         # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)\
-        with torch.no_grad():
-            action_tensor = self.policy_net(state).max(1)[1]
-        action_tensor = torch.tensor(action_tensor, dtype=torch.float32, device=self.device).unsqueeze(0)
-        return convert_action_tensor(action_tensor, self.N_ACTIONS)
+        sample = random.random()
+        if sample > self.EPS_END:
+            with torch.no_grad():
+                state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+                action_tensor = self.policy_net(state).max(1)[1]
+            return convert_action_tensor(action_tensor, self.N_ACTIONS)
+        else: 
+            return random_action_motion(self.N_ACTIONS, self.last_action)
+
+
 
 
     def select_action(self, state):
