@@ -4,6 +4,7 @@ import random
 from collections import namedtuple, deque
 from itertools import count
 from dqn_modules import ReplayMemory, DQN, Transition, instantiate_hardware, random_action_motion, convert_action_tensor, save_loss_to_csv
+from utils import render_toggle
 import datetime
 
 import torch
@@ -26,9 +27,9 @@ class DQN_Model:
     # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Left, Right, Down, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
     BATCH_SIZE = 128
-    GAMMA = 0.97
+    GAMMA = 0.98
     EPS_START = 0.9
-    EPS_END = 0.1
+    EPS_END = 0.05
     EPS_DECAY = 10000
     TAU = 0.01
     LR = 3e-4
@@ -38,6 +39,8 @@ class DQN_Model:
     last_action = None
 
     RENDER = False
+    RENDER_CLICK = True
+    SAVE_WEIGHTS_FROM_GAME = False
     LOSS_CALC_INDEX = 0
 
 
@@ -73,7 +76,7 @@ class DQN_Model:
             
         # If not training the model, can simply load existing parameters for run
         elif TRAIN_INFER_TOGGLE == "INFER":
-            self.policy_net.load_state_dict(torch.load('/assets/nn_params/Policy_Net_Params-datetime'))
+            self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-08.23.23-04.00'))
 
         else:
             print("***ALERT*** Please ensure 'TRAIN_INFER_TOGGLE' is set to either 'TRAIN' or 'INFER'")
@@ -86,8 +89,10 @@ class DQN_Model:
 
     def run_model_inference(self, state):
         """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
-        # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)
-        action_tensor = self.policy_net(state).max(1)[1]
+        # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)\
+        with torch.no_grad():
+            action_tensor = self.policy_net(state).max(1)[1]
+        action_tensor = torch.tensor(action_tensor, dtype=torch.float32, device=self.device).unsqueeze(0)
         return convert_action_tensor(action_tensor, self.N_ACTIONS)
 
 
@@ -186,6 +191,7 @@ class DQN_Model:
             state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         
             for t in count():
+                self.RENDER, self.RENDER_CLICK, self.SAVE_WEIGHTS_FROM_GAME = render_toggle(self.racegame_session.racegame.screen, self.RENDER, self.RENDER_CLICK)
                 action = self.select_action(state)
                 state, reward, crashed, laps_finished, time_limit = self.racegame_session.racegame.ai_train_step(action, self.RENDER)
                 reward = torch.tensor([reward], device=self.device)
@@ -216,6 +222,10 @@ class DQN_Model:
                 self.target_net.load_state_dict(target_net_state_dict)
 
                 self.last_action = action
+
+                if self.SAVE_WEIGHTS_FROM_GAME:
+                    self.export_params_and_loss()
+                    self.SAVE_WEIGHTS_FROM_GAME = False
                 
                 if done:
                     self.coins_since_last_print_window += self.racegame_session.racegame.coins

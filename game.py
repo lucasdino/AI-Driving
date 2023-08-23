@@ -22,7 +22,8 @@ class RaceGame:
     CRASHPENALTY = 500
     LAPS = 1
     SCORE_DECAY_RATE = 1
-    TIME_LIMIT = LAPS * 15
+    TIME_LIMIT = LAPS * 30
+    TRAINING_RENDER_TOGGLE = False
 
     def __init__(self, attempt, wins, draw_toggle, racetrack_reward_toggle, human_ai_toggle, train_infer_toggle, model):
         """Initialize the game, including Pygame, screen, sprites, and other game parameters."""
@@ -101,6 +102,7 @@ class RaceGame:
         self._handle_ai_input(action)
         self._update_game_logic()
         if render:
+            self.TRAINING_RENDER_TOGGLE = True
             self._render_game()
             self.clock.tick(40)
         
@@ -135,7 +137,6 @@ class RaceGame:
         action_to_motion(self.racecar, self.frame_action, self.ACCELERATION, self.TURN_SPEED)
         self.racecar.apply_drag(self.DRAG)
         self._update_racecar_env_vars()
-        self.racecar.return_clean_model_state()
 
 
     def _handle_ai_input(self, training_action=None):
@@ -144,11 +145,7 @@ class RaceGame:
         Also updates the racecar's motion based on the keys pressed.
         """
         game_exit_or_drawing(pygame.event.get(), self.draw_toggle, self.racetrack_reward_toggle, self.drawing_module)
-        
-        if self.train_infer_toggle == "TRAIN":
-            self.frame_action = training_action
-        elif self.train_infer_toggle == "INFER":
-            self.frame_action = self.model.run_model_inference(self.racecar.return_clean_model_state)
+        self.frame_action = self.model.run_model_inference(self.racecar.return_clean_model_state())
         
         # Handle movement based on input from either human or AI, then update racecar velocity and position
         # Once done, update the environment data (vision lines, reward lines)

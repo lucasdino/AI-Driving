@@ -84,13 +84,11 @@ class Racecar:
     def turn_left(self, turn_speed):
         """Turns the racecar to the left based on the provided turn_speed."""
         self.angle += turn_speed
-        self.modelinputs['angle'] = round(radians(self.angle), self.CALC_ANGLE_PRECISION)
 
 
     def turn_right(self, turn_speed):
         """Turns the racecar to the right based on the provided turn_speed."""
         self.angle -= turn_speed
-        self.modelinputs['angle'] = round(radians(self.angle), self.CALC_ANGLE_PRECISION)
 
 
     def apply_drag(self, drag):

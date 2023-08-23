@@ -37,9 +37,9 @@ class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, 128)
-        self.layer4 = nn.Linear(128, 64)
+        self.layer2 = nn.Linear(128, 64)
+        self.layer3 = nn.Linear(64, 64)
+        self.layer4 = nn.Linear(64, 64)
         self.layer5 = nn.Linear(64, n_actions)
 
     def forward(self, x):
@@ -70,7 +70,7 @@ def instantiate_hardware():
     num_episodes = 0
     if torch.cuda.is_available():
         hardware = "cuda"
-        num_episodes = 1000
+        num_episodes = 5000
     else:
         hardware = "cpu"
         num_episodes = 100

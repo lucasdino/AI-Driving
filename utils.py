@@ -143,3 +143,48 @@ def game_exit_or_drawing(events, draw_toggle, racetrack_reward_toggle, drawing_m
                 drawing_module.handle_rt_drawing_events(event)
             else:
                 drawing_module.handle_reward_drawing_events(event)
+
+
+# Defining variables externally that don't need to be recreated each time
+toggle_render_button_rect = pygame.Rect(10, 10, 80, 20)
+save_weights_button_rect = pygame.Rect(10, 40, 80, 20)
+
+RED = (255, 0, 0)
+PURPLE = (0, 255, 255)
+
+
+
+def render_toggle(screen, render_status, click_eligible = True, toggle_save = False):
+    """Class that lets the AI Training turn on and off rendering to speed up the training process but allow a window to peak in on"""
+
+    font = pygame.font.Font(None, 14)
+    
+    if render_status:
+        color = PURPLE
+    else:
+        color = RED
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+            quit()
+        if ((event.type == pygame.MOUSEBUTTONDOWN) and click_eligible):
+            click_eligible = False
+            if toggle_render_button_rect.collidepoint(event.pos):
+                render_status = not render_status
+            if save_weights_button_rect.collidepoint(event.pos):
+                toggle_save = True
+        if (event.type == pygame.MOUSEBUTTONUP):
+            click_eligible = True
+    
+    render_text = "Render: ON" if render_status else "Render: OFF"
+    render_text_font = font.render(render_text, True, (255, 255, 255))
+    save_text = font.render("Save Weights", True, (255, 255, 255))
+    
+    pygame.draw.rect(screen, color, toggle_render_button_rect)
+    pygame.draw.rect(screen, color, save_weights_button_rect)
+    screen.blit(render_text_font, (12,13))
+    screen.blit(save_text, (12,43))
+
+    pygame.display.flip()
+    return render_status, click_eligible, toggle_save
+    
