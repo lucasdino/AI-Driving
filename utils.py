@@ -2,7 +2,7 @@ import os
 import pygame
 import datetime
 import numpy as np
-from math import sin, cos, radians
+from math import sin, cos, radians, sqrt
 from shapely.geometry import LineString
 
 
@@ -83,49 +83,62 @@ def nearest_line_distance(center, angle, racetrack_line):
         return 1000
 
 
-def keypress_to_action(keys):
+def keypress_to_action(keys, ai_running=False):
     """Takes in a list of binaries relating to keys - convert list to action"""
-    action = [0]*9       # Do nothing is set as default
+    # Human playing - add functionality for all 9 keys; default (i.e., nothing is pressed) is 'do nothing'
     
-    if keys[pygame.K_UP] and keys[pygame.K_LEFT]: action[5] = 1
-    elif keys[pygame.K_UP] and keys[pygame.K_RIGHT]: action[6] = 1
-    elif keys[pygame.K_DOWN] and keys[pygame.K_LEFT]: action[7] = 1
-    elif keys[pygame.K_DOWN] and keys[pygame.K_RIGHT]: action[8] = 1
-    elif keys[pygame.K_LEFT]: action[1] = 1
-    elif keys[pygame.K_UP]: action[2] = 1
-    elif keys[pygame.K_RIGHT]: action[3] = 1
-    elif keys[pygame.K_DOWN]: action[4] = 1
-    else: action[0] = 1
+    action_set_size = 5 if ai_running else 9
+    action = [0]*action_set_size       
+    
+    if ai_running:
+        if keys[pygame.K_LEFT]: action[0] = 1
+        elif keys[pygame.K_UP]: action[1] = 1
+        elif keys[pygame.K_RIGHT]: action[2] = 1
+        elif keys[pygame.K_DOWN]: action[3] = 1
+        else: action[4] = 1
+    else:
+        if keys[pygame.K_UP] and keys[pygame.K_LEFT]: action[5] = 1
+        elif keys[pygame.K_UP] and keys[pygame.K_RIGHT]: action[6] = 1
+        elif keys[pygame.K_DOWN] and keys[pygame.K_LEFT]: action[7] = 1
+        elif keys[pygame.K_DOWN] and keys[pygame.K_RIGHT]: action[8] = 1
+        elif keys[pygame.K_LEFT]: action[0] = 1
+        elif keys[pygame.K_UP]: action[1] = 1
+        elif keys[pygame.K_RIGHT]: action[2] = 1
+        elif keys[pygame.K_DOWN]: action[3] = 1
+        else: action[4] = 1
 
     return action
 
 
-def action_to_motion(racecar, action, acceleration, turn_speed):
+def action_to_motion(racecar, action, acceleration, turn_speed, ai_running=False):
     """Converts list of actions to racecar motion"""
 
     # Handle movement based on input from either human or AI
     if action[0]:
-        pass    # Do nothing
-    if action[1]:
         racecar.turn_left(turn_speed)
-    if action[2]:
+    if action[1]:
         racecar.accelerate(acceleration)
-    if action[3]:
+    if action[2]:
         racecar.turn_right(turn_speed)
-    if action[4]:
+    if action[3]:
         racecar.brake(acceleration)
-    # if action[5]:
-    #     racecar.accelerate(acceleration)
-    #     racecar.turn_left(turn_speed)
-    # if action[6]:
-    #     racecar.accelerate(acceleration)
-    #     racecar.turn_right(turn_speed)
-    # if action[7]:
-    #     racecar.brake(acceleration)
-    #     racecar.turn_left(turn_speed)
-    # if action[8]:
-    #     racecar.brake(acceleration)
-    #     racecar.turn_right(turn_speed)
+    if action[4]:
+        pass    # Do nothing
+
+    # If human is driving, add functionality for these other keys; makes for better gameplay
+    if not ai_running:
+        if action[5]:
+            racecar.accelerate(acceleration)
+            racecar.turn_left(turn_speed)
+        if action[6]:
+            racecar.accelerate(acceleration)
+            racecar.turn_right(turn_speed)
+        if action[7]:
+            racecar.brake(acceleration)
+            racecar.turn_left(turn_speed)
+        if action[8]:
+            racecar.brake(acceleration)
+            racecar.turn_right(turn_speed)
 
 
 def game_exit_or_drawing(events, draw_toggle, racetrack_reward_toggle, drawing_module):
@@ -188,3 +201,27 @@ def render_toggle(screen, render_status, click_eligible = True, toggle_save = Fa
     pygame.display.flip()
     return render_status, click_eligible, toggle_save
     
+
+def calc_velocity(vel_vector):
+    return sqrt(vel_vector[0]**2 + vel_vector[1]**2)
+
+
+def manual_override_check(key, click_eligible, manual_override):
+    """Class to return boolean if we want to manually override"""
+    if not (key[pygame.K_q] == 1):
+        click_eligible = True
+    if (key[pygame.K_q] == 1 and click_eligible):
+        click_eligible = False
+        manual_override = not manual_override
+
+
+    return manual_override, click_eligible
+
+
+def scale_list(list, sprite_width, clipped_dist):
+    """Function that takes in a list, a length that we'll remove (adjustment) from the distance to account for the hitbox, and a max 'clipped' distance to remove impact of large outliers"""
+    adj_list = [min(max(x-sprite_width, 1), clipped_dist) for x in list]
+    max_val = max(adj_list)
+    scaled_list = [i/max_val for i in adj_list]
+
+    return scaled_list

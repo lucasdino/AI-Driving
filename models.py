@@ -1,20 +1,19 @@
 import pygame
 import csv
 import os
-from math import sin, cos, radians, atan2, hypot, pi, exp, sqrt
+from math import sin, cos, radians, atan2, hypot, pi, exp
 from pygame import Vector2, font, Surface
-from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance
+from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance, scale_list
 # from dqn_model import select_action
 
 
 class Racecar:
     """Class representing the racecar, which includes both the sprite and hit box of lines."""
-    CALC_DIST_PRECISION = 1         # Number of decimals dist calcs will be precise to
-    CALC_ANGLE_PRECISION = 3        # Number of decimals angle calcs will be precise to
     
     def __init__(self, position, sprite, velocity):
         self.position = Vector2(position)
         self.velocity = Vector2(velocity)
+        self.racecar_to_reward_vector = None
         self.angle = 90
         self.sprite = sprite
         self._update_rotated_sprite()
@@ -22,12 +21,26 @@ class Racecar:
         self._sprite_l = self.rotated_sprite_rect.height
         self.linesegments = []
         self.vision_lines = []
+        self.angle_to_reward = 0
         
-        # In 'game.py', when a class of 'racegame' is created, the model inputs are instantiated so modelinputs exist prior to any functions being called
+        # Inputs to the neural network:
+        #   vision_distances: List of the different distances to the nearest wall, in the various vision directions that are hardcoded in the calculate_vision_lines function
+        #           This is important as we need to allow the model to learn not to collide with walls. Since these directions are always in terms of the cars' current orientation,
+        #           the model can learn to associate turning / forward / backward with how that impacts these values
+        #   rel_angle_to_reward: Value from -1 to 1, where if car is directly facing the reward this is 0; as you move further away, the value approaches 1 or -1
+        #           Directly at 180 degrees away from the reward, there is a discontinuity where this value flips from -1 to 1. The reason for this is that by turning one direction (e.g., right),
+        #           the value will always be getting larger. By turning the other way, the value will always be getting smaller. This was thought as the most convenient way
+        #           to pass the relative angle through to the neural network so that it could learn
+        #   distance_to_reward: Distance to the reward, measured as the center of the car to the center of the reward in pixels.
+        #           Necessary value to pass through to the neural net as it is used in calculating the score given to the car; this way the neural network has the required information for calculating the reward function
+        #   velocity_to_reward: Velocity, in pixels, of the magnitude of the velocity in the direction of the reward. 
+        #           Calculated as the projected magnitude (dot product of Velocity Vector with Normalized Vector of the line going from the center of the racecar to the center of the coin) 
+
         self.modelinputs = {
             "vision_distances": [],
-            "angle_to_reward": 0,
-            "distance_to_reward": 0
+            "rel_angle_to_reward": 0,
+            "distance_to_reward": 0,
+            "velocity_to_reward": 0
         }
 
 
@@ -46,16 +59,16 @@ class Racecar:
             
             # Racecar vision lines and reward line
             for line in self.vision_lines:
-                pygame.draw.line(screen, (200, 100, 0), line[0], line[1], 2)
+                pygame.draw.line(screen, (200,100,0), line[0], line[1], 2)
             self._draw_reward_line(screen)
                 
         screen.blit(self.rotated_sprite, self.rotated_sprite_rect)
 
     def _draw_reward_line(self, screen):
-        """Draw line going to next coin to ensure calculation is correct"""
+        """Draw line going to next coin"""
         end_point = (
-            self.position[0] + self.modelinputs['distance_to_reward'] * cos(self.modelinputs['angle_to_reward']),
-            self.position[1] - self.modelinputs['distance_to_reward'] * sin(self.modelinputs['angle_to_reward']),
+            self.position[0] + self.modelinputs['distance_to_reward'] * cos(self.angle_to_reward),
+            self.position[1] - self.modelinputs['distance_to_reward'] * sin(self.angle_to_reward),
         )   
         pygame.draw.line(screen, (0, 255, 255), self.position, end_point, 2)
 
@@ -108,35 +121,17 @@ class Racecar:
                 return True
 
         return False
+    
 
-
-    def return_clean_model_state(self):
-        """Function to convert the 'model inputs' dictionary into a 1-D array"""
-        flat_clean_list = []
-        for key, value in self.modelinputs.items():
-            
-            # Start by cleaning the data so we pass through data in roughly the same scale
-            # Angle to reward needs to be converted so that it is relative to where the angle of the car is pointing.
-            # If car is facing the reward, angle_to_reward should be 0. As this rotates away, it will go to 1 or -1, where at 180 degrees there is a discontinuity and it jumps between 1 and -1
-            # This is helpful as the model can learn that always applying 'left' will decrease this value, or vice-versa for right
-            # Since the model is only aware of the current state (not prior states), it won't need to know anything other than this value
-            if key == "angle_to_reward":
-                t_1 = (value+pi)
-                t_2 = (radians(self.angle)+pi)%(2*pi)
-                value = (atan2(sin(t_1 - t_2), cos(t_1 - t_2)))/pi
-                
-            elif "distance" in key:
-                if isinstance(value, list):
-                    value = [exp(-(x/100)) for x in value]
-                else: 
-                    value = exp(-(value/100))
-
-            # Next, append the value to 
-            if isinstance(value, list):
-                flat_clean_list.extend(value)
-            else:
-                flat_clean_list.append(value)
-        return flat_clean_list
+    def calc_rel_angle_to_reward(self):
+        """
+        Angle to reward needs to be converted so that it is relative to where the angle of the car is pointing.
+        If car is facing the reward, rel_angle_to_reward should be 0. As this rotates away, it will go to 1 or -1, where at 180 degrees there is a discontinuity and it jumps between 1 and -1
+        This is helpful as the model can learn that always applying 'left' will decrease this value, or vice-versa for right
+        """
+        t_1 = (self.angle_to_reward+pi)
+        t_2 = (radians(self.angle)+pi)%(2*pi)
+        self.modelinputs['rel_angle_to_reward'] = (atan2(sin(t_1 - t_2), cos(t_1 - t_2)))/pi 
 
 
     def calculate_vision_lines(self, racetrack_line):
@@ -144,19 +139,18 @@ class Racecar:
         Calculates the distance to the nearest racetrack line for vision lines.
         Updates self.visiondist and self.visionlines.
         """
-        angle_step = 45
-        temp_angle = self.angle - angle_step
-        num_steps = int(360 / angle_step)
+        # Manually coding in the different vision lines - this creates more frequent lines at the front of the car and less frequent lines at the side / back. In rads
+        vision_line_angles = [0, pi/3, (2*pi)/5, pi/2, (3*pi)/5, (2*pi)/3, pi, (4*pi)/3, (7*pi)/5, (3*pi)/2, (8*pi)/5, (5*pi)/3]
+
         center = self.rotated_sprite_rect.center
         self.vision_lines = []
         self.modelinputs['vision_distances'] = []
 
-        for _ in range(num_steps):
-            temp_angle += angle_step
-            angle_rad = radians(temp_angle)
-            self.modelinputs['vision_distances'].append(min(round(nearest_line_distance(center, angle_rad, line), self.CALC_DIST_PRECISION) for line in racetrack_line))
-            temp_x = center[0] + self.modelinputs['vision_distances'][-1] * sin(angle_rad)
-            temp_y = center[1] + self.modelinputs['vision_distances'][-1] * cos(angle_rad)
+        for i in vision_line_angles:
+            angle = radians(self.angle) + i
+            self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle, line) for line in racetrack_line))
+            temp_x = center[0] + self.modelinputs['vision_distances'][-1] * sin(angle)
+            temp_y = center[1] + self.modelinputs['vision_distances'][-1] * cos(angle)
             self.vision_lines.append((center, (temp_x, temp_y)))
     
 
@@ -167,14 +161,50 @@ class Racecar:
         
         dx = racecar_x - rewardcoin_x
         dy = racecar_y - rewardcoin_y
+
+        # Reset the vector_to_reward object. Need to negate the inputs so that the vector is pointing in the direction from the racecar to the reward
+        self.racecar_to_reward_vector = Vector2(-dx, -dy)
         
         # Calculate angles for the car and the angle to the reward coin in radians; will convert this to sine when cleaning data later on
-        t_1 = atan2(dy,-dx)
-        self.modelinputs['angle_to_reward'] = round(t_1, self.CALC_ANGLE_PRECISION)
+        self.angle_to_reward = atan2(dy,-dx)
         
         # Calculate the distance between the two points; round to calc precision
-        self.modelinputs['distance_to_reward'] = round(hypot(dx, dy), self.CALC_DIST_PRECISION)
+        self.modelinputs['distance_to_reward'] = hypot(dx, dy)
 
+
+    def calculate_velocity_to_reward_vector(self):
+        """Function to calculate the magnitude of the velocity toward the reward"""
+        v_norm = self.racecar_to_reward_vector.normalize()
+        self.modelinputs['velocity_to_reward'] = self.velocity.dot(v_norm)
+
+
+    def return_clean_model_state(self, reward_coin_radius):
+        """Function to convert the 'model inputs' dictionary into a 1-D array"""
+        flat_clean_list = []
+        for key, value in self.modelinputs.items():
+            
+            # Start by cleaning the data so we pass through data in roughly the same scale    
+            if "vision_distances" in key:
+                clipped_distance = 200
+                value = scale_list(value, self._sprite_w, clipped_distance)
+                # value = [exp(-((x-self._sprite_w)/20)) for x in value]
+                # value = [max(x,1)/40 for x in value]
+            elif "rel_angle_to_reward" in key:
+                pass
+            elif "distance_to_reward" in key:
+                dist_less_radius = max(value-reward_coin_radius, 1)
+                # value = dist_less_radius/40
+                value = exp(-(dist_less_radius/20))
+            elif "velocity_to_reward" in key:
+                value = value / 3
+
+            # Next, append the value to a list that we pass back to the neural network
+            flat_clean_list.extend(value) if isinstance(value, list) else flat_clean_list.append(value)
+        
+        # rounded_list = [round(x, 2) for x in flat_clean_list]
+        # print(rounded_list[:8])
+        
+        return flat_clean_list
 
 
 class Racetrack:
@@ -186,10 +216,6 @@ class Racetrack:
 
         self._load_rewards_from_csv()
         self._load_lines_from_csv()
-
-        if draw_toggle and (not racetrack_reward_toggle == "RACETRACK") and (not racetrack_reward_toggle == "REWARD"):
-            print("***ALERT*** Please make sure the 'RACETRACK_REWARD_TOGGLE' in '__main__.py' is set to either 'RACETRACK' or 'REWARD'.")
-            quit()
         
 
     def _load_lines_from_csv(self):
@@ -213,7 +239,6 @@ class Racetrack:
 
     def draw(self, screen, display_hitboxes):
         """Draw racetrack lines on screen"""
-        
         if display_hitboxes:
             # Racetrack lines
             for line in self.lines:
@@ -226,21 +251,27 @@ class RewardCoin:
     def __init__(self, center, sprite):
         self.sprite = sprite
         self.center = center
+        self.radius = max(sprite.get_rect().width, sprite.get_rect().height)/2
         self.sprite_rect = self.sprite.get_rect(center=center)
         self.lines = sprite_to_lines(self.sprite_rect, self.sprite_rect.height, self.sprite_rect.width, 0)
         self.top_left = Vector2(center[0] - self.sprite_rect.height // 2, center[1] - self.sprite_rect.width // 2)
 
 
+    def get_radius(self):
+        """Simple getter for getting the reward coin's radius"""
+        return self.radius
+
+
     def draw(self, screen, display_hitboxes):
         """Draw coin on screen"""
-    
-        if display_hitboxes:
-            # Coin hit box
-            for line in self.lines:
-                pygame.draw.line(screen, (0, 255, 255), line[0], line[1], 3)
-            
         screen.blit(self.sprite, self.top_left)
+        if display_hitboxes:
+            pygame.draw.circle(screen, (0, 255, 255), (self.center), self.radius, 3)
 
+
+    def intersect_with_reward(self, distance_to_center):
+        """Check if a given point intersects with the sprite rectangle"""
+        return distance_to_center <= self.radius
 
 
 class GameBackground:
@@ -272,7 +303,7 @@ class GameBackground:
         screen.blit(temp_scoreboard, (screen.get_width() - 210, 10))
 
 
-    def draw_key_status(self, screen, keypress):
+    def draw_key_status(self, screen, keypress, ai_running=False):
         """Draw the keypad, lighting up when each associated key is pressed"""
         # Define colors
         GRAY = (128, 128, 128)
@@ -310,19 +341,25 @@ class GameBackground:
         screen.blit(s, (bg_rect.x, bg_rect.y))  # (0,0) are the top-left coordinates
 
         # Create temporary binary array for keys to pass through which should be highlighted red vs. grey
-        for i, _ in enumerate(['Left', 'Up', 'Right', 'Down']):
-        # for i, _ in enumerate(['Left', 'Up', 'Right', 'Down', 'Up_Left', 'Up_Right', 'Down_Left', 'Down_Right']):
-            if keypress[i+1] == 1 and i < 4:
-                converted_keypress[i] = 1
-            elif keypress[i+1] == 1 and i == 4:           # Up_Left
-                converted_keypress = [1,1,0,0]
-            elif keypress[i+1] == 1 and i == 5:           # Up_Right
-                converted_keypress = [0,1,1,0]
-            elif keypress[i+1] == 1 and i == 6:           # Down_Left
-                converted_keypress = [1,0,0,1]
-            elif keypress[i+1] == 1 and i == 7:           # Down_Right
-                converted_keypress = [0,0,1,1]
+        if ai_running:
+            for i, _ in enumerate(['Left', 'Up', 'Right', 'Down']):
+                if keypress[i] == 1:
+                    converted_keypress[i] = 1
         
+        # Have different loop for if human is playing since more keys
+        else:
+            for i, _ in enumerate(['Left', 'Up', 'Right', 'Down', 'Do_Nothing', 'Up_Left', 'Up_Right', 'Down_Left', 'Down_Right']):
+                if keypress[i] == 1 and i < 4:
+                    converted_keypress[i] = 1
+                elif keypress[i] == 1 and i == 5:           # Up_Left
+                    converted_keypress = [1,1,0,0]
+                elif keypress[i] == 1 and i == 6:           # Up_Right
+                    converted_keypress = [0,1,1,0]
+                elif keypress[i] == 1 and i == 7:           # Down_Left
+                    converted_keypress = [1,0,0,1]
+                elif keypress[i] == 1 and i == 8:           # Down_Right
+                    converted_keypress = [0,0,1,1]
+
 
         # Draw keys and arrows
         for i, key in enumerate(['Left', 'Up', 'Right', 'Down']):

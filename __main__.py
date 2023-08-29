@@ -5,7 +5,7 @@ from game import RaceGame
 # DRAW_TOGGLE - Set 'True' to enable drawing of either the racetrack or rewards
 # RACETRACK_REWARD_TOGGLE - If DRAW_TOGGLE = True, then set as 'RACETRACK' or 'REWARD' depending on what you'd like to draw with the mouse in-game
 HUMAN_AI_TOGGLE = "AI"
-TRAIN_INFER_TOGGLE = "INFER"
+TRAIN_INFER_TOGGLE = "TRAIN"
 DRAW_TOGGLE = False
 RACETRACK_REWARD_TOGGLE = "RACETRACK"
 
@@ -24,13 +24,15 @@ class Racegame_Session:
     def __init__(self):
         self.attempts = 0
         self.wins = 0
-        self.racegame = RaceGame(self.attempts, self.wins, DRAW_TOGGLE, RACETRACK_REWARD_TOGGLE, HUMAN_AI_TOGGLE, TRAIN_INFER_TOGGLE, NN_MODEL)
+        self.manual_override = False
+        self.racegame = RaceGame(self.attempts, self.wins, DRAW_TOGGLE, RACETRACK_REWARD_TOGGLE, HUMAN_AI_TOGGLE, TRAIN_INFER_TOGGLE, NN_MODEL, self.manual_override)
 
     def reset_racegame(self):
         """Method to reset the Racegame; before resetting, ensure attempts and wins is correctly updated"""
         self.attempts = self.racegame.attempt
         self.wins = self.racegame.wins
-        self.racegame = RaceGame(self.attempts, self.wins, DRAW_TOGGLE, RACETRACK_REWARD_TOGGLE, HUMAN_AI_TOGGLE, TRAIN_INFER_TOGGLE, NN_MODEL)
+        self.manual_override = self.racegame.manual_override
+        self.racegame = RaceGame(self.attempts, self.wins, DRAW_TOGGLE, RACETRACK_REWARD_TOGGLE, HUMAN_AI_TOGGLE, TRAIN_INFER_TOGGLE, NN_MODEL, self.manual_override)
 
 
 

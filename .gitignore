@@ -2,3 +2,4 @@ __pycache__/
 .vscode/
 assets/loss_results
 assets/nn_params
+assets/replay_memory

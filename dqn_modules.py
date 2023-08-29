@@ -1,7 +1,6 @@
 from collections import namedtuple, deque
 import random
-import matplotlib
-import matplotlib.pyplot as plt
+from math import floor
 import os
 import csv
 
@@ -29,6 +28,14 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
+    
+    def save_replay_memory(self):
+        """Class to save replay memory so that it can be loaded into a training run"""
+        pass
+    
+    def load_replay_memory(self):
+        """Class to load replay memory from saved files"""
+        pass
 
 
 class DQN(nn.Module):
@@ -37,15 +44,14 @@ class DQN(nn.Module):
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear(128, 64)
-        self.layer3 = nn.Linear(64, 64)
-        self.layer4 = nn.Linear(64, 64)
-        self.layer5 = nn.Linear(64, n_actions)
+        self.layer2 = nn.Linear(128, 128)
+        self.layer3 = nn.Linear(128, 128)
+        self.layer4 = nn.Linear(128, 128)
+        self.layer5 = nn.Linear(128, n_actions)
 
     def forward(self, x):
         """
-        Called with either one element to determine next action, or a batch
-        during optimization. Returns tensor of size of action set    
+        Forward pass of the neural network
         """
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
@@ -70,7 +76,7 @@ def instantiate_hardware():
     num_episodes = 0
     if torch.cuda.is_available():
         hardware = "cuda"
-        num_episodes = 5000
+        num_episodes = 2000
     else:
         hardware = "cpu"
         num_episodes = 100
@@ -87,7 +93,7 @@ def random_action_motion(action_space_size, last_action):
 
     # Output to go in some direction; bias going forward (Up is index 2, but adding 1 to everything for quick iteration / prototyping)
     if last_action == None:        
-        action_index = 2
+        action_index = 1
     else:
         prev_action_index = last_action.index(1)
 
@@ -99,6 +105,33 @@ def random_action_motion(action_space_size, last_action):
         else:
             action_index = min(prev_action_index+1, action_space_size-1)
         
+    action_list[action_index] = 1
+    return action_list
+    
+
+def early_training_random_action(action_space_size, last_action, steps_done, pretrain_steps):
+    """Function provides random motion to car, biased toward going straight so that early training is seeded with information about motion / reward function"""
+    rand = random.random()
+    action_list = [0]*action_space_size
+    action_index = 0
+
+    # Update biased_action so that each potential action is shown to the model multiple times in early training
+    biased_action = floor((steps_done/pretrain_steps)*action_space_size)
+    # biased_action = 1
+
+    # Similar logic as other random_action function, except this one will more heavily bias going forward
+    if last_action == None:
+        action_index = biased_action
+    else:
+        prev_action_index = last_action.index(1)
+
+        if rand < 0.8:
+            action_index = biased_action
+        elif rand < 0.9:
+            action_index = max(prev_action_index-1, 0)
+        else:
+            action_index = min(prev_action_index+1, action_space_size-1)
+            
     action_list[action_index] = 1
     return action_list
     

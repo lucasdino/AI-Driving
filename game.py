@@ -1,11 +1,11 @@
 import pygame
 import datetime
-from utils import load_sprite, shrink_sprite, keypress_to_action, action_to_motion, game_exit_or_drawing
+from utils import load_sprite, shrink_sprite, keypress_to_action, action_to_motion, game_exit_or_drawing, manual_override_check
 from models import GameBackground, Racecar, Racetrack, RewardCoin
 from drawing_module import Drawing
 
 
-DISPLAY_HITBOXES = True                 # Toggle to turn on displaying hitboxes or not
+DISPLAY_HITBOXES = False                # Toggle to turn on displaying hitboxes or not
 DISPLAY_ARROWS = True                   # Toggle to turn on the arrow key displays
 SCREEN_SIZE = (800, 600)                # Define the game screen size
 
@@ -17,15 +17,19 @@ class RaceGame:
     DRAG = 0.9
 
     # Define reward function metrics
-    APPROACHING_COIN_REWARD = 10
-    COINREWARD = 500
-    CRASHPENALTY = 500
-    LAPS = 1
-    SCORE_DECAY_RATE = 1
+    FACING_COIN_REWARD = 1
+    VELOCITY_TO_COIN_REWARD = 10
+    DISTANCE_TO_COIN_PENATLY = 10
+    COINREWARD = 2000
+    CRASHPENALTY = 2000
+
+    # Other metavariables
+    LAPS = 2
     TIME_LIMIT = LAPS * 30
     TRAINING_RENDER_TOGGLE = False
+    CLICK_ELIGIBLE_MANUAL_OVERRIDE = True
 
-    def __init__(self, attempt, wins, draw_toggle, racetrack_reward_toggle, human_ai_toggle, train_infer_toggle, model):
+    def __init__(self, attempt, wins, draw_toggle, racetrack_reward_toggle, human_ai_toggle, train_infer_toggle, model, manual_override):
         """Initialize the game, including Pygame, screen, sprites, and other game parameters."""
 
         self._initialize_pygame()
@@ -41,11 +45,13 @@ class RaceGame:
         self.game_background = GameBackground(load_sprite("RacetrackSprite", False))
         self.racecar = Racecar((72,356), shrink_sprite(load_sprite("RacecarSprite"), 0.15), (0,0))
         self.racetrack = Racetrack(draw_toggle, racetrack_reward_toggle)
-        self.coinsprite = shrink_sprite(load_sprite("MarioCoin"), 0.015) 
+        self.coinsprite = shrink_sprite(load_sprite("MarioCoin"), 0.02) 
         self.rewardcoin = RewardCoin(self.racetrack.rewards[0], self.coinsprite)
+        self.rewardcoinradius = self.rewardcoin.get_radius()
         
         # Calculate first instance of state to ensure model inputs are set and can be passed through to the neural net if necessary
-        self._update_racecar_env_vars()
+        self._update_racecar_state_vars()
+        self.manual_override = manual_override
 
         # Set game states and timers
         self.running = True
@@ -99,7 +105,14 @@ class RaceGame:
 
     def ai_train_step(self, action, render):
         """Method called by AI to step through the game one frame at a time. Returns all necessary variables for training as well"""
-        self._handle_ai_input(action)
+        # If user presses the 'Q' key, it toggles between manual override and back to model inference
+        self.manual_override, self.CLICK_ELIGIBLE_MANUAL_OVERRIDE = manual_override_check(pygame.key.get_pressed(), self.CLICK_ELIGIBLE_MANUAL_OVERRIDE, self.manual_override)
+        
+        if self.manual_override:
+            self._handle_ai_input(keypress_to_action(pygame.key.get_pressed(), True))
+        else:    
+            self._handle_ai_input(action)
+        
         self._update_game_logic()
         if render:
             self.TRAINING_RENDER_TOGGLE = True
@@ -109,7 +122,7 @@ class RaceGame:
         if self.running == False:
             self.attempt += 1
 
-        state = self.racecar.return_clean_model_state()
+        state = self.racecar.return_clean_model_state(self.rewardcoinradius)
         reward = self.rewardchange
         crashed = True if self.game_termination_reason == "Crash" else False
         laps_finished = True if self.game_termination_reason == "Lap(s) Completed" else False
@@ -118,25 +131,26 @@ class RaceGame:
         return state, reward, crashed, laps_finished, time_limit
 
 
-    def _update_racecar_env_vars(self):
+    def _update_racecar_state_vars(self):
         """Function to update racecar environment variables"""
         self.racecar.calculate_vision_lines(self.racetrack.lines)
         self.prior_reward_coin_distance = self.racecar.modelinputs['distance_to_reward']
         self.racecar.calculate_reward_line(self.rewardcoin)
+        self.racecar.calculate_velocity_to_reward_vector()
         
 
-    def _handle_human_input(self):
+    def _handle_human_input(self, ai_training = False):
         """
         Handle user input events such as closing the window, drawing events, and keyboard key presses.
         Also updates the racecar's motion based on the keys pressed.
         """
         game_exit_or_drawing(pygame.event.get(), self.draw_toggle, self.racetrack_reward_toggle, self.drawing_module)
-        self.frame_action = keypress_to_action(pygame.key.get_pressed())
-
+        self.frame_action = keypress_to_action(pygame.key.get_pressed(), False)
         # Handle movement then update racecar velocity and position. Once done, update the environment data (vision lines, reward lines)
         action_to_motion(self.racecar, self.frame_action, self.ACCELERATION, self.TURN_SPEED)
         self.racecar.apply_drag(self.DRAG)
-        self._update_racecar_env_vars()
+        self._update_racecar_state_vars()
+        # self.racecar.return_clean_model_state(self.rewardcoinradius)
 
 
     def _handle_ai_input(self, training_action=None):
@@ -145,13 +159,17 @@ class RaceGame:
         Also updates the racecar's motion based on the keys pressed.
         """
         game_exit_or_drawing(pygame.event.get(), self.draw_toggle, self.racetrack_reward_toggle, self.drawing_module)
-        self.frame_action = self.model.run_model_inference(self.racecar.return_clean_model_state())
         
+        if training_action == None:
+            self.frame_action = self.model.run_model_inference(self.racecar.return_clean_model_state(self.rewardcoinradius))
+        else:
+            self.frame_action = training_action
+
         # Handle movement based on input from either human or AI, then update racecar velocity and position
         # Once done, update the environment data (vision lines, reward lines)
-        action_to_motion(self.racecar, self.frame_action, self.ACCELERATION, self.TURN_SPEED)
+        action_to_motion(self.racecar, self.frame_action, self.ACCELERATION, self.TURN_SPEED, True)
         self.racecar.apply_drag(self.DRAG)
-        self._update_racecar_env_vars()
+        self._update_racecar_state_vars()
 
 
     def _update_game_logic(self):
@@ -160,6 +178,9 @@ class RaceGame:
         """
         # Move the racecar
         self.racecar.move()
+        self.racecar.calc_rel_angle_to_reward()
+        
+        # Reset func metavariables
         _car_survived_frame = True
         self.rewardchange = 0
 
@@ -171,28 +192,28 @@ class RaceGame:
                 _car_survived_frame = False
                 self.rewardchange -= self.CRASHPENALTY
         
-        # If car is still alive after the move, add one to the reward function
+        # If car is still alive after the move - reward it if it moves closer to the reward coin or further away
         if self.running and _car_survived_frame:
-            # Making function to add to reward function if car covers > 1 pixels closer to reward in a frame)
-            if self.prior_reward_coin_distance - 1 > self.racecar.modelinputs['distance_to_reward']:
-                self.rewardchange += self.APPROACHING_COIN_REWARD
-            if self.prior_reward_coin_distance + 1 < self.racecar.modelinputs['distance_to_reward']:
-                self.rewardchange -= self.APPROACHING_COIN_REWARD
- 
+            # Reward car for driving toward the reward. This is tied to the value that is being passed through onto the neural net
+            self.rewardchange += (self.racecar.modelinputs['velocity_to_reward'] * self.VELOCITY_TO_COIN_REWARD)
+
+            # Reward car for facing the coin. If it is fully facing away, it will be punished. If it is directly facing the coin, it will receive a reward.
+            self.rewardchange += self.FACING_COIN_REWARD - (abs(self.racecar.modelinputs['rel_angle_to_reward']) * 2 * self.FACING_COIN_REWARD)
+
+            # self.rewardchange -= (self.racecar.modelinputs['distance_to_reward']/100) * self.DISTANCE_TO_COIN_PENATLY
+            
+
         # Check for collisions with the coins; if so add to score / reward function
-        for line in self.rewardcoin.lines:
-            if self.racecar.check_line_collision(line):
-                # Update score (coin count). If you hit the # of laps, then end the game and add a win
-                self.coins += 1
-                if self.coins == (self.LAPS * self.coins_per_lap)+1:
-                    self.running = False
-                    self.game_termination_reason = "Lap(s) Completed"
-                    self.wins += 1
-                
-                self.rewardchange += self.COINREWARD
-                _next_reward_coin = self.coins % len(self.racetrack.rewards)
-                self.rewardcoin = RewardCoin(self.racetrack.rewards[_next_reward_coin], self.coinsprite)
-                break
+        if self.rewardcoin.intersect_with_reward(self.racecar.modelinputs['distance_to_reward']):
+            self.coins += 1
+            if self.coins == (self.LAPS * self.coins_per_lap)+1:
+                self.running = False
+                self.game_termination_reason = "Lap(s) Completed"
+                self.wins += 1
+            
+            self.rewardchange += self.COINREWARD
+            _next_reward_coin = self.coins % len(self.racetrack.rewards)
+            self.rewardcoin = RewardCoin(self.racetrack.rewards[_next_reward_coin], self.coinsprite)
         
         # Check for violation of time limit
         if ((pygame.time.get_ticks() - self.start_time) // 1000) > self.TIME_LIMIT:
@@ -200,7 +221,7 @@ class RaceGame:
             self.game_termination_reason = "Time Limit"
 
         # Update score
-        self.rewardfunction = (self.rewardfunction + self.rewardchange) * self.SCORE_DECAY_RATE
+        self.rewardfunction = self.rewardfunction + self.rewardchange
 
 
     def _render_game(self):
@@ -215,7 +236,7 @@ class RaceGame:
         # Draw the background and the racecar
         self.game_background.draw_scoreboard(self.screen, elapsed_time, self.rewardfunction, frame_rate, self.attempt, self.wins)
         if DISPLAY_ARROWS:
-            self.game_background.draw_key_status(self.screen, self.frame_action)
+            self.game_background.draw_key_status(self.screen, self.frame_action, True if self.human_ai_toggle == "AI" else False)
         
         self.racecar.draw(self.screen, DISPLAY_HITBOXES)
 

@@ -3,7 +3,7 @@ import math
 import random
 from collections import namedtuple, deque
 from itertools import count
-from dqn_modules import ReplayMemory, DQN, Transition, instantiate_hardware, random_action_motion, convert_action_tensor, save_loss_to_csv
+from dqn_modules import ReplayMemory, DQN, Transition, instantiate_hardware, random_action_motion, early_training_random_action, convert_action_tensor, save_loss_to_csv
 from utils import render_toggle
 import datetime
 
@@ -22,23 +22,25 @@ class DQN_Model:
     # EPS_START is the starting value of epsilon
     # EPS_END is the final value of epsilon
     # EPS_DECAY lets you add a number of steps of semi-random motion before you start amortizing semi-randomization with EPS_DECAY
+    # EPS_DELAY lets you manually set the number of steps at the start that can run on a different policy (i.e., heavily biases going forward). This should help the model learn the correct behavior
     # TAU is the update rate of the target network
     # LR is the learning rate of the ``AdamW`` optimizer
     # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Left, Right, Down, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
-    BATCH_SIZE = 128
-    GAMMA = 0.98
+    BATCH_SIZE = 512
+    GAMMA = 0.99
     EPS_START = 0.9
     EPS_END = 0.05
-    EPS_DECAY = 10000
-    TAU = 0.01
-    LR = 3e-4
+    EPS_DECAY = 20000
+    PRETRAIN_STEPS = 1600
+    TAU = 0.3
+    LR = 3e-5
     N_ACTIONS = 5
-    N_OBSERVATIONS = 10
-    MEMORY_FRAMES = 10000
+    N_OBSERVATIONS = 15
+    MEMORY_FRAMES = 5000
     last_action = None
 
-    RENDER = False
+    RENDER = True
     RENDER_CLICK = True
     SAVE_WEIGHTS_FROM_GAME = False
     LOSS_CALC_INDEX = 0
@@ -76,7 +78,7 @@ class DQN_Model:
             
         # If not training the model, can simply load existing parameters for run
         elif TRAIN_INFER_TOGGLE == "INFER":
-            self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-08.23.23-04.00'))
+            self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-08.23.23-21.37'))
 
         else:
             print("***ALERT*** Please ensure 'TRAIN_INFER_TOGGLE' is set to either 'TRAIN' or 'INFER'")
@@ -100,24 +102,22 @@ class DQN_Model:
             return random_action_motion(self.N_ACTIONS, self.last_action)
 
 
-
-
-    def select_action(self, state):
+    def select_action_in_training(self, state):
         """Pass through environment state and return action (i.e., driving motion)"""
         sample = random.random()
         eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * \
-            math.exp(-1. * self.steps_done / (self.EPS_DECAY))
+            math.exp(-1. * self.steps_done / self.EPS_DECAY)
         self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
-                # t.max(1) will return the largest column value of each row.
-                # second column on max result is index of where max element was
-                # found, so we pick action with the larger expected reward.
                 action_tensor = self.policy_net(state).max(1)[1]
                 return convert_action_tensor(action_tensor, self.N_ACTIONS)
         else:
-            return random_action_motion(self.N_ACTIONS, self.last_action)
-
+            if self.steps_done < self.PRETRAIN_STEPS:
+                return early_training_random_action(self.N_ACTIONS, self.last_action, self.steps_done, self.PRETRAIN_STEPS)
+            else:
+                return random_action_motion(self.N_ACTIONS, self.last_action)
+        
 
     def print_progress(self):
         """Function to print training progress to the console every 'print_freq' episodes"""
@@ -141,9 +141,6 @@ class DQN_Model:
         if len(self.memory) < self.BATCH_SIZE:
             return
         transitions = self.memory.sample(self.BATCH_SIZE)
-        # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
-        # detailed explanation). This converts batch-array of Transitions
-        # to Transition of batch-arrays.
         batch = Transition(*zip(*transitions))
 
         # Compute a mask of non-final states and concatenate the batch elements
@@ -193,13 +190,14 @@ class DQN_Model:
         # Each episode refers to an 'attempt' in the game (i.e., car crashes, finishes # of laps, or is cut off because of time limit)
         for _ in range(self.max_episodes):
             
-            state = self.racegame_session.racegame.racecar.return_clean_model_state()
+            state = self.racegame_session.racegame.racecar.return_clean_model_state(self.racegame_session.racegame.rewardcoinradius)
             state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         
             for t in count():
                 self.RENDER, self.RENDER_CLICK, self.SAVE_WEIGHTS_FROM_GAME = render_toggle(self.racegame_session.racegame.screen, self.RENDER, self.RENDER_CLICK)
-                action = self.select_action(state)
+                action = self.select_action_in_training(state)
                 state, reward, crashed, laps_finished, time_limit = self.racegame_session.racegame.ai_train_step(action, self.RENDER)
+                
                 reward = torch.tensor([reward], device=self.device)
                 done = crashed or laps_finished or time_limit
 
