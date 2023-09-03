@@ -33,8 +33,8 @@ class DQN_Model:
     EPS_END = 0.05
     EPS_DECAY = 5000
     PRETRAIN_STEPS = 0
-    TAU = 0.1
-    LR = 3e-3
+    TAU = 1e-4
+    LR = 1e-4
     N_ACTIONS = 5
     N_OBSERVATIONS = 17
     MEMORY_FRAMES = 5000
