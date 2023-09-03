@@ -5,7 +5,7 @@ from models import GameBackground, Racecar, Racetrack, RewardCoin
 from drawing_module import Drawing
 
 
-DISPLAY_HITBOXES = False                # Toggle to turn on displaying hitboxes or not
+DISPLAY_HITBOXES = True                 # Toggle to turn on displaying hitboxes or not
 DISPLAY_ARROWS = True                   # Toggle to turn on the arrow key displays
 RANDOM_COIN_START = True                # Toggle to have car start at random coin location to begin or to start at starting line
 SCREEN_SIZE = (800, 600)                # Define the game screen size
@@ -19,7 +19,7 @@ class RaceGame:
 
     # Other metavariables
     LAPS = 2
-    TIME_LIMIT = LAPS * 30
+    TIME_LIMIT = LAPS * 20
     TRAINING_RENDER_TOGGLE = False
     CLICK_ELIGIBLE_MANUAL_OVERRIDE = True
 
@@ -39,7 +39,7 @@ class RaceGame:
         self.game_background = GameBackground(load_sprite("RacetrackSprite", False))
         self.racetrack = Racetrack(RANDOM_COIN_START)
         self.coinsprite = shrink_sprite(load_sprite("MarioCoin"), 0.02) 
-        self.rewardcoin = RewardCoin(self.racetrack.rewards[self.racetrack.get_next_reward_coin_index()], self.coinsprite)
+        self.rewardcoin = RewardCoin(self.racetrack.rewards[self.racetrack.reward_coin_index], self.coinsprite)
         self.rewardcoinradius = self.rewardcoin.get_radius()
         self.racecar = Racecar(self.racetrack.start_position, shrink_sprite(load_sprite("RacecarSprite"), 0.15), self.rewardcoin)
         self.racecar_previous_action = 1
@@ -184,13 +184,13 @@ class RaceGame:
         # Define reward function variables
         FacingCoin_Reward = 1
         VelocityToCoin_Reward = 1
-        Coin_Reward = 1000
+        Coin_Reward = 1500
 
         DistanceToCoin_Penalty = 10
         ProximityToWall_Penalty = 20
-        LackOfMotion_Penalty = 1
-        BehaviorChange_Penalty = 1
-        Crash_Penalty = 5000
+        LackOfMotion_Multiplier_Penalty = 3
+        BehaviorChange_Penalty = 3
+        Crash_Penalty = 4000
 
         # Check for collisions with the walls
         for line in self.racetrack.lines:
@@ -198,16 +198,19 @@ class RaceGame:
                 self.running = False
                 _car_survived_frame = False
                 self.game_termination_reason = "Crash"
-                # self.rewardchange -= Crash_Penalty
+                self.rewardchange -= Crash_Penalty
                 break
         
         # If car is still alive after the move - reward it if it moves closer to the reward coin or further away
         if self.running and _car_survived_frame:
             # self.rewardchange += FacingCoin_Reward - (abs(self.racecar.modelinputs['rel_angle_to_reward']) * 2 * FacingCoin_Reward)
-            # self.rewardchange += (self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward)
+            self.rewardchange += (self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward)
             # self.rewardchange -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
-            # self.rewardchange -= max(LackOfMotion_Penalty-(abs(self.racecar.velocity[0])+abs(self.racecar.velocity[1])), 0)
-            pass
+            self.rewardchange -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0])+abs(self.racecar.velocity[1])), 0)
+            # self.rewardchange += BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 1 else 0
+            # self.rewardchange -= BehaviorChange_Penalty/2 if (self.racecar.modelinputs['last_action_index'] == 0 or self.racecar.modelinputs['last_action_index'] == 2) else 0
+            # self.rewardchange -= BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
+            self.rewardchange -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
 
         # Check for collisions with the coins; if so add to score / reward function
         if self.rewardcoin.intersect_with_reward(self.racecar.modelinputs['distance_to_reward']):
@@ -217,8 +220,8 @@ class RaceGame:
                 self.game_termination_reason = "Lap(s) Completed"
                 self.wins += 1
             
-            self.rewardchange += Coin_Reward
             self.racetrack.update_reward_coin_index()
+            self.rewardchange += Coin_Reward
             self.rewardcoin = RewardCoin(self.racetrack.rewards[self.racetrack.reward_coin_index], self.coinsprite)
         
         # Check for violation of time limit

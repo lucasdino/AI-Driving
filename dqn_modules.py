@@ -88,7 +88,7 @@ def instantiate_hardware():
     num_episodes = 0
     if torch.cuda.is_available():
         hardware = "cuda"
-        num_episodes = 2000
+        num_episodes = 5000
     else:
         hardware = "cpu"
         num_episodes = 100

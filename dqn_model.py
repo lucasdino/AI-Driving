@@ -36,9 +36,10 @@ class DQN_Model:
     TAU = 0.1
     LR = 3e-3
     N_ACTIONS = 5
-    N_OBSERVATIONS = 13
+    N_OBSERVATIONS = 17
     MEMORY_FRAMES = 5000
     last_action = None
+    episode_final_reward = []
 
     RENDER = True
     RENDER_CLICK = True
@@ -132,7 +133,9 @@ class DQN_Model:
             else:
                 avg_loss = loss_catalog.mean().item()
 
-            print(f"Episode {self.racegame_episodes}/{self.max_episodes} - Avg Loss: {avg_loss:.2f} ({self.LOSS_CALC_INDEX}-{len(loss_catalog)}) - Coins Since Last Print: {self.coins_since_last_print_window}")
+            avg_score_over_print_window = round(sum(self.episode_final_reward[-print_freq:])/print_freq, 0)
+
+            print(f"Episode {self.racegame_episodes}/{self.max_episodes} - Avg Loss: {avg_loss:.2f} ({self.LOSS_CALC_INDEX}-{len(loss_catalog)}) - Coins Since Last Print: {self.coins_since_last_print_window} - Avg End Score: {avg_score_over_print_window}")
             self.coins_since_last_print_window = 0
             self.LOSS_CALC_INDEX = len(loss_catalog)
 
@@ -228,12 +231,13 @@ class DQN_Model:
                 self.last_action = action
 
                 if self.SAVE_WEIGHTS_FROM_GAME:
-                    # self.export_params_and_loss()
+                    self.export_params_and_loss()
                     self.memory.save_replay_memory(self.N_OBSERVATIONS)
                     self.SAVE_WEIGHTS_FROM_GAME = False
                 
                 if done:
                     self.coins_since_last_print_window += self.racegame_session.racegame.coins
+                    self.episode_final_reward.append(self.racegame_session.racegame.rewardfunction)
                     self.racegame_session.reset_racegame()
                     self.racegame_episodes = self.racegame_session.attempts
                     self.print_progress()

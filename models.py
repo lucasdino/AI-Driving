@@ -241,7 +241,9 @@ class Racecar:
                 pass
                 # value = value / 3
             elif "last_action_index" in key:
-                pass
+                new_list = [0] * 5
+                new_list[value] = 1
+                value = new_list
 
             if include:
                 # Next, append the value to a list that we pass back to the neural network
@@ -262,11 +264,12 @@ class Racetrack:
         
         self._load_rewards_from_csv()
         self._load_lines_from_csv()
-        self.reward_coin_index = random.randrange(len(self.rewards)) if start_at_random_coin else 0
-        
-        self.start_position = (self.rewards[self.reward_coin_index])
-        
 
+        self.reward_coin_index = random.randrange(len(self.rewards)) if start_at_random_coin else 0
+        self.start_position = (self.rewards[self.reward_coin_index])
+        self.update_reward_coin_index()
+
+        
     def _load_lines_from_csv(self):
         """Loads race track lines from a CSV file."""
         filename = os.path.join("assets/track", "drawn_racetrack-06.05.23-01.10.csv")
