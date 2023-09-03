@@ -2,7 +2,7 @@ import os
 import pygame
 import datetime
 import numpy as np
-from math import sin, cos, radians, sqrt
+from math import sin, cos, radians, sqrt, hypot
 from shapely.geometry import LineString
 
 
@@ -218,10 +218,14 @@ def manual_override_check(key, click_eligible, manual_override):
     return manual_override, click_eligible
 
 
-def scale_list(list, sprite_width, clipped_dist):
+def scale_list(list, clipped_dist):
     """Function that takes in a list, a length that we'll remove (adjustment) from the distance to account for the hitbox, and a max 'clipped' distance to remove impact of large outliers"""
-    adj_list = [min(max(x-sprite_width, 1), clipped_dist) for x in list]
+    adj_list = [min(max(x, 0.1), clipped_dist) for x in list]
     max_val = max(adj_list)
     scaled_list = [i/max_val for i in adj_list]
 
     return scaled_list
+
+
+def return_magnitude(vector):
+    return hypot(vector[0], vector[1])

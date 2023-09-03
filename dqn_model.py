@@ -3,7 +3,7 @@ import math
 import random
 from collections import namedtuple, deque
 from itertools import count
-from dqn_modules import ReplayMemory, DQN, Transition, instantiate_hardware, random_action_motion, early_training_random_action, convert_action_tensor, save_loss_to_csv
+from dqn_modules import ReplayMemory, DQN, Transition, instantiate_hardware, random_action_motion, early_training_random_action, convert_action_tensor_to_list, save_loss_to_csv
 from utils import render_toggle
 import datetime
 
@@ -31,12 +31,12 @@ class DQN_Model:
     GAMMA = 0.99
     EPS_START = 0.9
     EPS_END = 0.05
-    EPS_DECAY = 20000
-    PRETRAIN_STEPS = 1600
-    TAU = 0.3
-    LR = 3e-5
+    EPS_DECAY = 5000
+    PRETRAIN_STEPS = 0
+    TAU = 0.1
+    LR = 3e-3
     N_ACTIONS = 5
-    N_OBSERVATIONS = 15
+    N_OBSERVATIONS = 13
     MEMORY_FRAMES = 5000
     last_action = None
 
@@ -97,7 +97,7 @@ class DQN_Model:
             with torch.no_grad():
                 state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
                 action_tensor = self.policy_net(state).max(1)[1]
-            return convert_action_tensor(action_tensor, self.N_ACTIONS)
+            return convert_action_tensor_to_list(action_tensor, self.N_ACTIONS)
         else: 
             return random_action_motion(self.N_ACTIONS, self.last_action)
 
@@ -111,7 +111,7 @@ class DQN_Model:
         if sample > eps_threshold:
             with torch.no_grad():
                 action_tensor = self.policy_net(state).max(1)[1]
-                return convert_action_tensor(action_tensor, self.N_ACTIONS)
+                return convert_action_tensor_to_list(action_tensor, self.N_ACTIONS)
         else:
             if self.steps_done < self.PRETRAIN_STEPS:
                 return early_training_random_action(self.N_ACTIONS, self.last_action, self.steps_done, self.PRETRAIN_STEPS)
@@ -150,7 +150,7 @@ class DQN_Model:
         non_final_next_states = torch.cat([s for s in batch.next_state
                                                     if s is not None])
         state_batch = torch.cat(batch.state)        # Outputs a tensor of dim 12 x 128 (i.e., STATE x BATCH)
-        action_batch = torch.cat(batch.action)      # Outputs a tensor of dim 9 x 128 (i.e., ACTION x BATCH)
+        action_batch = torch.cat(batch.action)      # Outputs a tensor of dim 5 x 128 (i.e., ACTION x BATCH)
         reward_batch = torch.cat(batch.reward)      # Outputs a tensor of dim 128
 
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
@@ -228,7 +228,8 @@ class DQN_Model:
                 self.last_action = action
 
                 if self.SAVE_WEIGHTS_FROM_GAME:
-                    self.export_params_and_loss()
+                    # self.export_params_and_loss()
+                    self.memory.save_replay_memory(self.N_OBSERVATIONS)
                     self.SAVE_WEIGHTS_FROM_GAME = False
                 
                 if done:

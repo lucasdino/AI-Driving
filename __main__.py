@@ -7,7 +7,7 @@ from game import RaceGame
 HUMAN_AI_TOGGLE = "AI"
 TRAIN_INFER_TOGGLE = "TRAIN"
 DRAW_TOGGLE = False
-RACETRACK_REWARD_TOGGLE = "RACETRACK"
+RACETRACK_REWARD_TOGGLE = "REWARD"
 
 if HUMAN_AI_TOGGLE == "AI":
     from dqn_model import DQN_Model

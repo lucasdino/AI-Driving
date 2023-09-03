@@ -1,53 +1,71 @@
 import pygame
 import csv
 import os
-from math import sin, cos, radians, atan2, hypot, pi, exp
-from pygame import Vector2, font, Surface
+import random
+from math import sin, cos, atan2, hypot, degrees, radians, pi, exp
+from pygame import Vector2
 from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance, scale_list
-# from dqn_model import select_action
 
 
 class Racecar:
     """Class representing the racecar, which includes both the sprite and hit box of lines."""
     
-    def __init__(self, position, sprite, velocity):
-        self.position = Vector2(position)
-        self.velocity = Vector2(velocity)
-        self.racecar_to_reward_vector = None
-        self.angle = 90
-        self.sprite = sprite
-        self._update_rotated_sprite()
-        self._sprite_w = self.rotated_sprite_rect.width
-        self._sprite_l = self.rotated_sprite_rect.height
-        self.linesegments = []
-        self.vision_lines = []
-        self.angle_to_reward = 0
+    def __init__(self, position, sprite, next_reward_coin):
         
-        # Inputs to the neural network:
-        #   vision_distances: List of the different distances to the nearest wall, in the various vision directions that are hardcoded in the calculate_vision_lines function
-        #           This is important as we need to allow the model to learn not to collide with walls. Since these directions are always in terms of the cars' current orientation,
-        #           the model can learn to associate turning / forward / backward with how that impacts these values
-        #   rel_angle_to_reward: Value from -1 to 1, where if car is directly facing the reward this is 0; as you move further away, the value approaches 1 or -1
-        #           Directly at 180 degrees away from the reward, there is a discontinuity where this value flips from -1 to 1. The reason for this is that by turning one direction (e.g., right),
-        #           the value will always be getting larger. By turning the other way, the value will always be getting smaller. This was thought as the most convenient way
-        #           to pass the relative angle through to the neural network so that it could learn
-        #   distance_to_reward: Distance to the reward, measured as the center of the car to the center of the reward in pixels.
-        #           Necessary value to pass through to the neural net as it is used in calculating the score given to the car; this way the neural network has the required information for calculating the reward function
-        #   velocity_to_reward: Velocity, in pixels, of the magnitude of the velocity in the direction of the reward. 
-        #           Calculated as the projected magnitude (dot product of Velocity Vector with Normalized Vector of the line going from the center of the racecar to the center of the coin) 
+        self.position = Vector2(position)
+        self.velocity = Vector2(0,0)
+        self.sprite = sprite
+        self.linesegments, self.vision_lines = [], []
+
+        # Set up metavariables and align racecar to point to next reward coin
+        self._instantiate_racecar(next_reward_coin)
+        
+        # Update car rotation so that it is facing the next coin
+        self._update_rotated_sprite()
+        
 
         self.modelinputs = {
+            # Inputs to the neural network:
+            #   vision_distances: List of the different distances to the nearest wall, in the various vision directions that are hardcoded in the calculate_vision_lines function
+            #           This is important as we need to allow the model to learn not to collide with walls. Since these directions are always in terms of the cars' current orientation,
+            #           the model can learn to associate turning / forward / backward with how that impacts these values
+            #   rel_angle_to_reward: Value from -1 to 1, where if car is directly facing the reward this is 0; as you move further away, the value approaches 1 or -1
+            #           Directly at 180 degrees away from the reward, there is a discontinuity where this value flips from -1 to 1. The reason for this is that by turning one direction (e.g., right),
+            #           the value will always be getting larger. By turning the other way, the value will always be getting smaller. This was thought as the most convenient way
+            #           to pass the relative angle through to the neural network so that it could learn
+            #   distance_to_reward: Distance to the reward, measured as the center of the car to the center of the reward in pixels.
+            #           Necessary value to pass through to the neural net as it is used in calculating the score given to the car; this way the neural network has the required information for calculating the reward function
+            #   velocity_to_reward: Velocity, in pixels, of the magnitude of the velocity in the direction of the reward. 
+            #           Calculated as the projected magnitude (dot product of Velocity Vector with Normalized Vector of the line going from the center of the racecar to the center of the coin) 
+            #   last_action_index: We also append the last action to the end of our model state before passing into the neural net; this let's us add a smooth behavior reward to our reward function
             "vision_distances": [],
             "rel_angle_to_reward": 0,
             "distance_to_reward": 0,
-            "velocity_to_reward": 0
+            "velocity_to_reward": 0,
+            "racecar_velocity": 0,
+            "last_action_index": 0
         }
 
 
     def _update_rotated_sprite(self):
         self.rotated_sprite = pygame.transform.rotate(self.sprite, self.angle)
         self.rotated_sprite_rect = self.rotated_sprite.get_rect(center=self.position)
-
+        self.linesegments = sprite_to_lines(self.rotated_sprite_rect, self._sprite_w, self._sprite_l, self.angle)
+    
+    def _instantiate_racecar(self, next_reward_coin):
+        """Self-explanatory class name. Purpose is to set up necessary variables for later call and align racecar to point toward next reward coin"""
+        
+        # Start by setting necessary class metavariables. Seems backward - but since the car starts such that the sprite is facing to the right, we set up so that
+        # the metavariables are labeled relative to the racecar for more intuitive understanding later in code 
+        self._sprite_w = self.sprite.get_rect(center=self.position).height
+        self._sprite_l = self.sprite.get_rect(center=self.position).width
+        
+        # Set other metavariables. Need to calculate the angle to the next reward, then set the 'self.angle' to that value so that we can correctly align the racecar at the start of the game
+        self.angle_to_reward = 0
+        self.racecar_to_reward_vector = None
+        self.calculate_reward_line(next_reward_coin, False)
+        self.angle = (degrees(self.angle_to_reward))
+        
 
     def draw(self, screen, display_hitboxes):
         """Draws the racecar lines and vision lines on the provided screen."""
@@ -77,7 +95,6 @@ class Racecar:
         """Moves the racecar and recalculates its hitbox."""
         self.position += self.velocity
         self._update_rotated_sprite()
-        self.linesegments = sprite_to_lines(self.rotated_sprite_rect, self._sprite_w, self._sprite_l, self.angle)
 
 
     def accelerate(self, acceleration):
@@ -140,7 +157,8 @@ class Racecar:
         Updates self.visiondist and self.visionlines.
         """
         # Manually coding in the different vision lines - this creates more frequent lines at the front of the car and less frequent lines at the side / back. In rads
-        vision_line_angles = [0, pi/3, (2*pi)/5, pi/2, (3*pi)/5, (2*pi)/3, pi, (4*pi)/3, (7*pi)/5, (3*pi)/2, (8*pi)/5, (5*pi)/3]
+        vision_line_angles = [0, pi/3, pi/2, (2*pi)/3, pi, (4*pi)/3, (3*pi)/2, (5*pi)/3]
+        # vision_line_angles = [0, pi/2, pi, (3*pi)/2]
 
         center = self.rotated_sprite_rect.center
         self.vision_lines = []
@@ -148,13 +166,21 @@ class Racecar:
 
         for i in vision_line_angles:
             angle = radians(self.angle) + i
-            self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle, line) for line in racetrack_line))
-            temp_x = center[0] + self.modelinputs['vision_distances'][-1] * sin(angle)
-            temp_y = center[1] + self.modelinputs['vision_distances'][-1] * cos(angle)
-            self.vision_lines.append((center, (temp_x, temp_y)))
-    
+            # Start by calculating (based on angle) the dist (pixels) to car's hitbox. Then calculate the dist to the nearest racetrack wall (and subtract dist from hitbox
+            # to get dist from hitbox to nearest wall)
+            dist_to_car_hitbox = min(nearest_line_distance(center, angle, line) for line in self.linesegments)
+            self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle, line) for line in racetrack_line)-dist_to_car_hitbox)
+            
+            # Then calculate the coordinates for the points on the hitbox and on the wall
+            hitbox_x = center[0] + dist_to_car_hitbox * sin(angle)
+            hitbox_y = center[1] + dist_to_car_hitbox * cos(angle)
+            wall_x = hitbox_x + self.modelinputs['vision_distances'][-1] * sin(angle)
+            wall_y = hitbox_y + self.modelinputs['vision_distances'][-1] * cos(angle)
+            
+            self.vision_lines.append(((hitbox_x, hitbox_y), (wall_x, wall_y)))
 
-    def calculate_reward_line(self, rewardcoin):
+
+    def calculate_reward_line(self, rewardcoin, update_model_inputs=True):
         """Calculates the distance and angle to the next reward coin and updates 'modelinputs'"""
         rewardcoin_x, rewardcoin_y = rewardcoin.center
         racecar_x, racecar_y = self.position
@@ -162,47 +188,67 @@ class Racecar:
         dx = racecar_x - rewardcoin_x
         dy = racecar_y - rewardcoin_y
 
-        # Reset the vector_to_reward object. Need to negate the inputs so that the vector is pointing in the direction from the racecar to the reward
+        # Reset the vector_to_reward object. Need to negate the inputs so that the vector is pointing in the direction from the racecar to the reward (due to pygame's coordinate system)
         self.racecar_to_reward_vector = Vector2(-dx, -dy)
         
         # Calculate angles for the car and the angle to the reward coin in radians; will convert this to sine when cleaning data later on
         self.angle_to_reward = atan2(dy,-dx)
         
         # Calculate the distance between the two points; round to calc precision
-        self.modelinputs['distance_to_reward'] = hypot(dx, dy)
+        if update_model_inputs:
+            self.modelinputs['distance_to_reward'] = hypot(dx, dy)
 
 
-    def calculate_velocity_to_reward_vector(self):
-        """Function to calculate the magnitude of the velocity toward the reward"""
-        v_norm = self.racecar_to_reward_vector.normalize()
-        self.modelinputs['velocity_to_reward'] = self.velocity.dot(v_norm)
+    def calculate_velocity_vectors(self):
+        """Function to calculate two velocity vectors for store. One is the velocity to the reward, the other, the relative velocity of the car based on the direction it is facing"""
+        # Calculating the absolute velocity vectors using dot products on normalized vectors that relate to the direction of the car
+        v_norm_forward = Vector2(cos(radians(self.angle)), sin(radians(self.angle)))
+        v_norm_right = Vector2(cos(radians(self.angle-90)), sin(radians(self.angle-90)))
+        v_velocity_norm = Vector2(self.velocity[0], -self.velocity[1])       # Need to flip the y around since coordinates in pygame are backward
+        self.modelinputs['racecar_velocity'] = [v_velocity_norm.dot(v_norm_forward), v_velocity_norm.dot(v_norm_right)]
+        
+        # Calculating the magnitude of the velocity to the reward vector
+        v_norm_to_reward = self.racecar_to_reward_vector.normalize()
+        self.modelinputs['velocity_to_reward'] = self.velocity.dot(v_norm_to_reward)
 
 
     def return_clean_model_state(self, reward_coin_radius):
         """Function to convert the 'model inputs' dictionary into a 1-D array"""
         flat_clean_list = []
         for key, value in self.modelinputs.items():
-            
+            include = True
+
             # Start by cleaning the data so we pass through data in roughly the same scale    
             if "vision_distances" in key:
                 clipped_distance = 200
-                value = scale_list(value, self._sprite_w, clipped_distance)
-                # value = [exp(-((x-self._sprite_w)/20)) for x in value]
+                value = scale_list(value, clipped_distance)
+                # value = [exp(-((max(x-5,0))/25)) for x in value]
                 # value = [max(x,1)/40 for x in value]
             elif "rel_angle_to_reward" in key:
+                # include = False
                 pass
             elif "distance_to_reward" in key:
+                # include = False
+                # pass
                 dist_less_radius = max(value-reward_coin_radius, 1)
-                # value = dist_less_radius/40
-                value = exp(-(dist_less_radius/20))
+                value = dist_less_radius/40
+                # value = exp(-(dist_less_radius/25))
             elif "velocity_to_reward" in key:
-                value = value / 3
+                include = False
+                # value = value / 3
+            elif "racecar_velocity" in key:
+                # include = False
+                pass
+                # value = value / 3
+            elif "last_action_index" in key:
+                pass
 
-            # Next, append the value to a list that we pass back to the neural network
-            flat_clean_list.extend(value) if isinstance(value, list) else flat_clean_list.append(value)
+            if include:
+                # Next, append the value to a list that we pass back to the neural network
+                flat_clean_list.extend(value) if isinstance(value, list) else flat_clean_list.append(value)
         
         # rounded_list = [round(x, 2) for x in flat_clean_list]
-        # print(rounded_list[:8])
+        # print(f"{rounded_list}")
         
         return flat_clean_list
 
@@ -210,12 +256,15 @@ class Racecar:
 class Racetrack:
     """Class representing the racetrack, which consists of a list of border lines and rewards."""
     
-    def __init__(self, draw_toggle, racetrack_reward_toggle):
+    def __init__(self, start_at_random_coin):
         self.lines = []
         self.rewards = []
-
+        
         self._load_rewards_from_csv()
         self._load_lines_from_csv()
+        self.reward_coin_index = random.randrange(len(self.rewards)) if start_at_random_coin else 0
+        
+        self.start_position = (self.rewards[self.reward_coin_index])
         
 
     def _load_lines_from_csv(self):
@@ -243,6 +292,16 @@ class Racetrack:
             # Racetrack lines
             for line in self.lines:
                 pygame.draw.line(screen, (255, 0, 0), line[0], line[1], 3)
+
+
+    def get_next_reward_coin_index(self):
+        """Simple getter function to return the next reward coin index"""
+        return self.reward_coin_index+1 if self.reward_coin_index+1 < len(self.rewards) else 0
+    
+
+    def update_reward_coin_index(self):
+        """Simple function to update 'self.reward_coin_index' so that once the car gets a coin, you can point to the next instance of a coin"""
+        self.reward_coin_index  = self.get_next_reward_coin_index()
 
 
 class RewardCoin:
