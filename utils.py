@@ -229,3 +229,14 @@ def scale_list(list, clipped_dist):
 
 def return_magnitude(vector):
     return hypot(vector[0], vector[1])
+
+
+def normal_dist(input, mean, std_dev):
+    """Class that takes an input and returns the same input but scaled to mean=0 and std_dev = 1 based on empirical observations"""
+    if isinstance(input, list):
+        for i in range(len(input)):
+            input[i] = (input[i] - mean)/std_dev
+    else:
+        input = (input - mean)/std_dev
+
+    return input

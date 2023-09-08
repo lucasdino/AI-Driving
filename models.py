@@ -4,7 +4,7 @@ import os
 import random
 from math import sin, cos, atan2, hypot, degrees, radians, pi, exp
 from pygame import Vector2
-from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance, scale_list
+from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance, scale_list, normal_dist
 
 
 class Racecar:
@@ -65,6 +65,7 @@ class Racecar:
         self.racecar_to_reward_vector = None
         self.calculate_reward_line(next_reward_coin, False)
         self.angle = (degrees(self.angle_to_reward))
+        self.angle += 180 if random.random() >= 0.5 else 0
         
 
     def draw(self, screen, display_hitboxes):
@@ -222,6 +223,8 @@ class Racecar:
             if "vision_distances" in key:
                 clipped_distance = 200
                 value = scale_list(value, clipped_distance)
+                mean, std_dev = (0.05, 0.78)                  # Gathered from empirical data
+                value = normal_dist(value, mean, std_dev)
                 # value = [exp(-((max(x-5,0))/25)) for x in value]
                 # value = [max(x,1)/40 for x in value]
             elif "rel_angle_to_reward" in key:
@@ -232,6 +235,8 @@ class Racecar:
                 # pass
                 dist_less_radius = max(value-reward_coin_radius, 1)
                 value = dist_less_radius/40
+                mean, std_dev = (3, 1.8)                  # Gathered from empirical data based on scaling by 40
+                value = normal_dist(value, mean, std_dev)
                 # value = exp(-(dist_less_radius/25))
             elif "velocity_to_reward" in key:
                 include = False

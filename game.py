@@ -112,7 +112,7 @@ class RaceGame:
         if render:
             self.TRAINING_RENDER_TOGGLE = True
             self._render_game()
-            self.clock.tick(40)
+            # self.clock.tick(40)
         
         if self.running == False:
             self.attempt += 1
@@ -191,7 +191,7 @@ class RaceGame:
         ProximityToWall_Multiplier = 2
         LackOfMotion_Multiplier_Penalty = 4
         BehaviorChange_Penalty = 3
-        Crash_Penalty = 2000
+        Crash_Penalty = 4000
 
         # Check for collisions with the walls
         for line in self.racetrack.lines:

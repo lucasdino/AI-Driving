@@ -103,16 +103,15 @@ def random_action_motion(action_space_size, last_action):
     action_list = [0]*action_space_size
     action_index = 0
 
-    # Output to go in some direction; bias going forward (Up is index 2, but adding 1 to everything for quick iteration / prototyping)
     if last_action == None:        
-        action_index = 1
+        action_index = random.randint(0, action_space_size-2)
     else:
         prev_action_index = last_action.index(1)
 
         # Bias toward having car do the same action as before. Prevents super wobbly behavior. Otherwise add 1 / subtract 1 (min/max to prevent OOB)
-        if rand < 0.9:
+        if rand < 0.6:
             action_index = prev_action_index
-        elif rand < 0.95:
+        elif rand < 0.8:
             action_index = max(prev_action_index-1, 0)
         else:
             action_index = min(prev_action_index+1, action_space_size-1)
