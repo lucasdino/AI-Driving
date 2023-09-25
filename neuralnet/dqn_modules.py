@@ -1,10 +1,10 @@
-from collections import namedtuple, deque
-from math import floor
 import random
 import os
 import csv
 import datetime
 import pygame
+from collections import namedtuple, deque
+from math import floor
 
 import torch
 import torch.nn as nn

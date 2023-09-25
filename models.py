@@ -356,14 +356,14 @@ class GameBackground:
         self.scoreboard_bg.set_alpha(150)
 
 
-    def draw_scoreboard(self, screen, time, score, frame_rate, attempt, wins):
+    def draw_scoreboard(self, screen, time, score, frame_rate, session_metadata):
         """Render background and scoreboard"""
         screen.blit(self.racetrack_background, (0,0))
         
         temp_scoreboard = self.scoreboard_bg.copy()
         score_time_text = self.font.render(f"Time: {time}s        Score: {score:.0f}", True, (255, 255, 255))
-        attempt_wins_text = self.font.render(f"Attempt: {attempt}     Wins: {wins}", True, (255, 255, 255))
-        FPS_attempt_text = self.font.render(f"FPS: {frame_rate}     Attempt: {attempt}", True, (255, 255, 255))
+        attempt_wins_text = self.font.render(f"Attempt: {session_metadata['attempts']}     Wins: {session_metadata['wins']}", True, (255, 255, 255))
+        FPS_attempt_text = self.font.render(f"FPS: {frame_rate}     Attempt: {session_metadata['attempts']}", True, (255, 255, 255))
         
         temp_scoreboard.blit(score_time_text, (10, 10))
         temp_scoreboard.blit(FPS_attempt_text, (10, 35))

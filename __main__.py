@@ -1,6 +1,6 @@
 from session import Racegame_Session
 from neuralnet.dqn_model import DQN_Model  
-from utility.gamesettings import gamesettings
+from utility.gamesettings import gamesettings, session_metadata
 
 
 # NN_MODEL - Instance of the DQN model object that can be passed into the racegame for inference
@@ -11,7 +11,7 @@ session = None
 if __name__ == '__main__':
 
     # Start by launching a racegame session
-    session = Racegame_Session(gamesettings)
+    session = Racegame_Session(gamesettings, session_metadata)
 
     # First case - if human will be driving
     if (gamesettings['human_ai_toggle'] == 'HUMAN'):

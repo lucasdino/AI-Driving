@@ -13,11 +13,20 @@
 
 
 gamesettings = {
-    'human_ai_toggle': 'AI',                 # {'AI', 'HUMAN'}
+    'human_ai_toggle': 'HUMAN',                 # {'AI', 'HUMAN'}
     'train_infer_toggle': 'TRAIN',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
     'draw_toggle': False,                       # {'True', 'False'}
     'racetrack_reward_toggle': 'REWARD',        # {'RACETRACK', 'REWARD'} -> Only used if draw mode is set to 'True'
     'display_hitboxes': True,                   # {'True', 'False'}
     'display_arrows': True,                     # {'True', 'False'}
     'random_coin_start': True                   # {'True', 'False'}
+}
+
+
+# Data that will be held at the session-level and will be updated and reshared with the racegame each time a new racegame is initialized
+
+session_metadata = {
+    'attempts': 0,
+    'wins': 0,
+    'manual_override': False
 }

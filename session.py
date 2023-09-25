@@ -4,17 +4,14 @@ from game import RaceGame
 class Racegame_Session:
     """Parent class that keeps track of meta variables for the racegame and allows for neural net training"""
 
-    def __init__(self, gamesettings):
-        self.attempts, self.wins = 0, 0
+    def __init__(self, gamesettings, session_metadata):
+        self.session_metadata = session_metadata
         self.gamesettings = gamesettings
-        self.manual_override = False
         self.racegame, self.nn_model = None, None
         
     def reset_racegame(self):
         """Method to reset the Racegame; before resetting, ensure attempts and wins is correctly updated"""
-        self.attempts = self.racegame.attempt
-        self.wins = self.racegame.wins
-        self.manual_override = self.racegame.manual_override
+        self.session_metadata = self.racegame.session_metadata
         self.create_racegame()
         
     def model_setter(self, nn_model):
@@ -23,4 +20,4 @@ class Racegame_Session:
 
     def create_racegame(self):
         """Launch a new instance of a racegame"""
-        self.racegame = RaceGame(self.attempts, self.wins, self.gamesettings, self.nn_model, self.manual_override)
+        self.racegame = RaceGame(self.gamesettings, self.nn_model, self.session_metadata)
