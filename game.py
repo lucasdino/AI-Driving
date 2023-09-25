@@ -9,7 +9,7 @@ class RaceGame:
     """Main game class responsible for handling game logic, input, and rendering."""    
     # Define motion parameters
     _ACCELERATION = 0.6
-    _TURNSPEED = 4.0
+    _TURNSPEED = 0.09
     _DRAG = 0.9
 
     # Other metavariables
@@ -87,9 +87,9 @@ class RaceGame:
     def ai_train_step(self, action, render):
         """Method called by AI to step through the game one frame at a time. Returns all necessary variables for training as well"""
         # If user presses the 'Q' key, it toggles between manual override and back to model inference
-        self.session_metadata['click_override'], self._CLICKELIGIBILITY_MANUALOVERRIDE = manual_override_check(pygame.key.get_pressed(), self._CLICKELIGIBILITY_MANUALOVERRIDE, self.session_metadata['click_override'])
+        self.session_metadata['manual_override'], self._CLICKELIGIBILITY_MANUALOVERRIDE = manual_override_check(pygame.key.get_pressed(), self._CLICKELIGIBILITY_MANUALOVERRIDE, self.session_metadata['manual_override'])
         
-        if self.session_metadata['click_override']:
+        if self.session_metadata['manual_override']:
             self._handle_ai_input(keypress_to_action(pygame.key.get_pressed(), True))
         else:    
             self._handle_ai_input(action)
@@ -194,7 +194,7 @@ class RaceGame:
             self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 3)
             self.reward_change -= max(0, PixelsToWall_PenaltyThreshold-min(self.racecar.modelinputs['vision_distances']))*ProximityToWall_Multiplier
             # self.rewardchange -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
-            self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0])+abs(self.racecar.velocity[1])), 0)
+            self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0,0])+abs(self.racecar.velocity[0,1])), 0)
             # self.rewardchange += BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 1 else 0
             # self.rewardchange -= BehaviorChange_Penalty/2 if (self.racecar.modelinputs['last_action_index'] == 0 or self.racecar.modelinputs['last_action_index'] == 2) else 0
             # self.rewardchange -= BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0

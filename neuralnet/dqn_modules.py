@@ -3,8 +3,8 @@ import os
 import csv
 import datetime
 import pygame
+import numpy as np
 from collections import namedtuple, deque
-from math import floor
 
 import torch
 import torch.nn as nn
@@ -100,12 +100,12 @@ def instantiate_hardware():
 
 def random_action_motion(action_space_size, last_action):
     """Function provides random motion to car"""
-    rand = random.random()
+    rand = np.random.random()
     action_list = [0]*action_space_size
     action_index = 0
 
     if last_action == None:        
-        action_index = random.randint(0, action_space_size-2)
+        action_index = np.random.randint(action_space_size-2)
     else:
         prev_action_index = last_action.index(1)
 
@@ -128,7 +128,7 @@ def early_training_random_action(action_space_size, last_action, steps_done, pre
     action_index = 0
 
     # Update biased_action so that each potential action is shown to the model multiple times in early training
-    biased_action = floor((steps_done/pretrain_steps)*action_space_size)
+    biased_action = np.floor((steps_done/pretrain_steps)*action_space_size)
     # biased_action = 1
 
     # Similar logic as other random_action function, except this one will more heavily bias going forward

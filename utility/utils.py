@@ -1,9 +1,8 @@
-import os
 import pygame
+import os
 import datetime
-import math
 import numpy as np
-from shapely.geometry import LineString
+import shapely.geometry as geom
 
 
 def load_sprite(name, with_alpha=True):
@@ -18,58 +17,56 @@ def shrink_sprite(sprite, scale):
     return pygame.transform.scale(sprite, tuple(int(dim * scale) for dim in (sprite.get_width(), sprite.get_height())))
 
 
-def rotate_point(point, center, angle):
-    """Rotates a point around a center by a given angle."""
-    angle = math.radians(angle)
-    dx, dy = np.subtract(point, center)
-    new_dx = dx * math.cos(angle) - dy * math.sin(angle)
-    new_dy = dx * math.sin(angle) + dy * math.cos(angle)
-    return center[0] + new_dx, center[1] + new_dy
-
 def sprite_to_lines(sprite_rect, width, height, angle):
     """Convert sprite into a list of lines that draw the border of the car and a list that draw the vision lines"""    
     center = sprite_rect.center
+    angle_rotated = np.pi/2 - angle
 
     # Calculate front left coordinates
-    fl_x = center[0] - (math.cos(math.radians(angle))*(height/2)) + (math.cos(math.radians(90-angle))*(width/2))
-    fl_y = center[1] + (math.sin(math.radians(angle))*(height/2)) + (math.sin(math.radians(90-angle))*(width/2))
+    fl_x = center[0] - (np.cos(angle)*(height/2)) + (np.cos(angle_rotated)*(width/2))
+    fl_y = center[1] + (np.sin(angle)*(height/2)) + (np.sin(angle_rotated)*(width/2))
     front_left = (fl_x, fl_y)
     
     # Calculate front right coordinates
-    fr_x = center[0] - (math.cos(math.radians(angle))*(height/2)) - (math.cos(math.radians(90-angle))*(width/2))
-    fr_y = center[1] + (math.sin(math.radians(angle))*(height/2)) - (math.sin(math.radians(90-angle))*(width/2))
+    fr_x = center[0] - (np.cos(angle)*(height/2)) - (np.cos(angle_rotated)*(width/2))
+    fr_y = center[1] + (np.sin(angle)*(height/2)) - (np.sin(angle_rotated)*(width/2))
     front_right = (fr_x, fr_y)
     
     # Calculate bottom right coordinates
-    br_x = center[0] + (math.cos(math.radians(angle))*(height/2)) - (math.cos(math.radians(90-angle))*(width/2))
-    br_y = center[1] - (math.sin(math.radians(angle))*(height/2)) - (math.sin(math.radians(90-angle))*(width/2))
+    br_x = center[0] + (np.cos(angle)*(height/2)) - (np.cos(angle_rotated)*(width/2))
+    br_y = center[1] - (np.sin(angle)*(height/2)) - (np.sin(angle_rotated)*(width/2))
     bottom_right = (br_x, br_y)
     
     # Calculate bottom left coordinates
-    bl_x = center[0] + (math.cos(math.radians(angle))*(height/2)) + (math.cos(math.radians(90-angle))*(width/2))
-    bl_y = center[1] - (math.sin(math.radians(angle))*(height/2)) + (math.sin(math.radians(90-angle))*(width/2))
+    bl_x = center[0] + (np.cos(angle)*(height/2)) + (np.cos(angle_rotated)*(width/2))
+    bl_y = center[1] - (np.sin(angle)*(height/2)) + (np.sin(angle_rotated)*(width/2))
     bottom_left = (bl_x, bl_y)
     
     return [(front_left, front_right), (front_right, bottom_right), (bottom_right, bottom_left), (bottom_left, front_left)]
+
 
 def is_counterclockwise(A, B, C):
     """Determines if points A, B, C are ordered in a counterclockwise direction."""
     return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0])
 
+
 def line_intersection(line1, line2):
     """Computes the intersection point of two lines."""
-    try:
-        intersect_point = LineString(line1).intersection(LineString(line2))
-        return (intersect_point.x, intersect_point.y) if not intersect_point.is_empty else None
-    except Exception:
+    intersect_point = geom.LineString(line1).intersection(geom.LineString(line2))
+    if intersect_point.is_empty:
         return None
+    elif intersect_point.geom_type == 'Point':
+        return (intersect_point.x, intersect_point.y)
+    else:    
+        return None
+
 
 def nearest_line_distance(center, angle, racetrack_line):
     """Computes the distance to the nearest line from a point at a given angle."""
     
     # Calculate the unit direction vector and extend it from the center point
-    direction = np.array([np.sin(angle), np.cos(angle)])
-    line = [center, (center[0] + 1000*direction[0], center[1] + 1000*direction[1])]
+    direction = np.array([[np.sin(angle), np.cos(angle)]])
+    line = [center, (center[0] + 1000*direction[0,0], center[1] + 1000*direction[0,1])]
 
     # Calculate the intersection point between the extended line and the given line segment
     intersection = line_intersection(line, racetrack_line)
@@ -158,10 +155,6 @@ def game_exit_or_drawing(events, draw_toggle, racetrack_reward_toggle, drawing_m
                 drawing_module.handle_reward_drawing_events(event)
 
 
-def calc_velocity(vel_vector):
-    return math.sqrt(vel_vector[0]**2 + vel_vector[1]**2)
-
-
 def manual_override_check(key, click_eligible, manual_override):
     """Class to return boolean if we want to manually override"""
     if not (key[pygame.K_q] == 1):
@@ -169,7 +162,6 @@ def manual_override_check(key, click_eligible, manual_override):
     if (key[pygame.K_q] == 1 and click_eligible):
         click_eligible = False
         manual_override = not manual_override
-
 
     return manual_override, click_eligible
 
@@ -181,10 +173,6 @@ def scale_list(list, clipped_dist):
     scaled_list = [i/max_val for i in adj_list]
 
     return scaled_list
-
-
-def return_magnitude(vector):
-    return math.hypot(vector[0], vector[1])
 
 
 def normal_dist(input, mean, std_dev):

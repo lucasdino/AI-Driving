@@ -1,7 +1,6 @@
 # Direction from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
-import math
-import random
 import datetime
+import numpy as np
 from itertools import count
 from .dqn_modules import *
 
@@ -92,7 +91,7 @@ class DQN_Model:
     def run_model_inference(self, state):
         """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
         # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)\
-        sample = random.random()
+        sample = np.random.random()
         if sample > self.EPS_END:
             with torch.no_grad():
                 state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
@@ -104,9 +103,9 @@ class DQN_Model:
 
     def select_action_in_training(self, state):
         """Pass through environment state and return action (i.e., driving motion)"""
-        sample = random.random()
+        sample = np.random.random()
         eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * \
-            math.exp(-1. * self.steps_done / self.EPS_DECAY)
+            np.exp(-1. * self.steps_done / self.EPS_DECAY)
         self.steps_done += 1
         if sample > eps_threshold:
             with torch.no_grad():
@@ -192,7 +191,7 @@ class DQN_Model:
         # Each episode refers to an 'attempt' in the game (i.e., car crashes, finishes # of laps, or is cut off because of time limit)
         for _ in range(self.max_episodes):
             
-            state = self.racegame_session.racegame.racecar.return_clean_model_state(self.racegame_session.racegame.rewardcoinradius)
+            state = self.racegame_session.racegame.racecar.return_clean_model_state(self.racegame_session.racegame.rewardcoin.get_radius())
             state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         
             for t in count():
@@ -236,9 +235,9 @@ class DQN_Model:
                 
                 if done:
                     self.coins_since_last_print_window += self.racegame_session.racegame.coins
-                    self.episode_final_reward.append(self.racegame_session.racegame.rewardfunction)
+                    self.episode_final_reward.append(self.racegame_session.racegame.cumulative_reward)
                     self.racegame_session.reset_racegame()
-                    self.racegame_episodes = self.racegame_session.attempts
+                    self.racegame_episodes = self.racegame_session.session_metadata['attempts']
                     self.print_progress()
                     self.last_action = None
                     break

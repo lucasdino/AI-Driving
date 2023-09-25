@@ -13,7 +13,7 @@
 
 
 gamesettings = {
-    'human_ai_toggle': 'HUMAN',                 # {'AI', 'HUMAN'}
+    'human_ai_toggle': 'AI',                 # {'AI', 'HUMAN'}
     'train_infer_toggle': 'TRAIN',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
     'draw_toggle': False,                       # {'True', 'False'}
     'racetrack_reward_toggle': 'REWARD',        # {'RACETRACK', 'REWARD'} -> Only used if draw mode is set to 'True'
