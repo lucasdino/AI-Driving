@@ -2,9 +2,9 @@ import pygame
 import csv
 import os
 import random
-from math import sin, cos, atan2, hypot, degrees, radians, pi, exp
-from pygame import Vector2
-from utils import sprite_to_lines, is_counterclockwise, nearest_line_distance, scale_list, normal_dist
+import numpy as np
+import math
+from utility.utils import *
 
 
 class Racecar:
@@ -12,8 +12,8 @@ class Racecar:
     
     def __init__(self, position, sprite, next_reward_coin):
         
-        self.position = Vector2(position)
-        self.velocity = Vector2(0,0)
+        self.position = pygame.Vector2(position)
+        self.velocity = pygame.Vector2(0,0)
         self.sprite = sprite
         self.linesegments, self.vision_lines = [], []
 
@@ -64,7 +64,7 @@ class Racecar:
         self.angle_to_reward = 0
         self.racecar_to_reward_vector = None
         self.calculate_reward_line(next_reward_coin, False)
-        self.angle = (degrees(self.angle_to_reward))
+        self.angle = (math.degrees(self.angle_to_reward))
         self.angle += 180 if random.random() >= 0.5 else 0
         
 
@@ -86,8 +86,8 @@ class Racecar:
     def _draw_reward_line(self, screen):
         """Draw line going to next coin"""
         end_point = (
-            self.position[0] + self.modelinputs['distance_to_reward'] * cos(self.angle_to_reward),
-            self.position[1] - self.modelinputs['distance_to_reward'] * sin(self.angle_to_reward),
+            self.position[0] + self.modelinputs['distance_to_reward'] * math.cos(self.angle_to_reward),
+            self.position[1] - self.modelinputs['distance_to_reward'] * math.sin(self.angle_to_reward),
         )   
         pygame.draw.line(screen, (0, 255, 255), self.position, end_point, 2)
 
@@ -100,16 +100,16 @@ class Racecar:
 
     def accelerate(self, acceleration):
         """Accelerates the racecar based on the given acceleration."""
-        dx = acceleration * cos(radians(self.angle))
-        dy = acceleration * sin(radians(self.angle))
-        self.velocity += Vector2(dx, -dy)
+        dx = acceleration * math.cos(math.radians(self.angle))
+        dy = acceleration * math.sin(math.radians(self.angle))
+        self.velocity += pygame.Vector2(dx, -dy)
 
 
     def brake(self, deceleration):
         """Applies a braking force to the racecar based on the provided deceleration."""
-        dx = deceleration * cos(radians(self.angle))
-        dy = deceleration * sin(radians(self.angle))
-        self.velocity -= Vector2(dx, -dy)
+        dx = deceleration * math.cos(math.radians(self.angle))
+        dy = deceleration * math.sin(math.radians(self.angle))
+        self.velocity -= pygame.Vector2(dx, -dy)
 
 
     def turn_left(self, turn_speed):
@@ -147,9 +147,9 @@ class Racecar:
         If car is facing the reward, rel_angle_to_reward should be 0. As this rotates away, it will go to 1 or -1, where at 180 degrees there is a discontinuity and it jumps between 1 and -1
         This is helpful as the model can learn that always applying 'left' will decrease this value, or vice-versa for right
         """
-        t_1 = (self.angle_to_reward+pi)
-        t_2 = (radians(self.angle)+pi)%(2*pi)
-        self.modelinputs['rel_angle_to_reward'] = (atan2(sin(t_1 - t_2), cos(t_1 - t_2)))/pi 
+        t_1 = (self.angle_to_reward+math.pi)
+        t_2 = (math.radians(self.angle)+math.pi)%(2*math.pi)
+        self.modelinputs['rel_angle_to_reward'] = (math.atan2(math.sin(t_1 - t_2), math.cos(t_1 - t_2)))/math.pi 
 
 
     def calculate_vision_lines(self, racetrack_line):
@@ -158,7 +158,7 @@ class Racecar:
         Updates self.visiondist and self.visionlines.
         """
         # Manually coding in the different vision lines - this creates more frequent lines at the front of the car and less frequent lines at the side / back. In rads
-        vision_line_angles = [0, pi/3, pi/2, (2*pi)/3, pi, (4*pi)/3, (3*pi)/2, (5*pi)/3]
+        vision_line_angles = [0, math.pi/3, math.pi/2, (2*math.pi)/3, math.pi, (4*math.pi)/3, (3*math.pi)/2, (5*math.pi)/3]
         # vision_line_angles = [0, pi/2, pi, (3*pi)/2]
 
         center = self.rotated_sprite_rect.center
@@ -166,17 +166,17 @@ class Racecar:
         self.modelinputs['vision_distances'] = []
 
         for i in vision_line_angles:
-            angle = radians(self.angle) + i
+            angle = math.radians(self.angle) + i
             # Start by calculating (based on angle) the dist (pixels) to car's hitbox. Then calculate the dist to the nearest racetrack wall (and subtract dist from hitbox
             # to get dist from hitbox to nearest wall)
             dist_to_car_hitbox = min(nearest_line_distance(center, angle, line) for line in self.linesegments)
             self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle, line) for line in racetrack_line)-dist_to_car_hitbox)
             
             # Then calculate the coordinates for the points on the hitbox and on the wall
-            hitbox_x = center[0] + dist_to_car_hitbox * sin(angle)
-            hitbox_y = center[1] + dist_to_car_hitbox * cos(angle)
-            wall_x = hitbox_x + self.modelinputs['vision_distances'][-1] * sin(angle)
-            wall_y = hitbox_y + self.modelinputs['vision_distances'][-1] * cos(angle)
+            hitbox_x = center[0] + dist_to_car_hitbox * math.sin(angle)
+            hitbox_y = center[1] + dist_to_car_hitbox * math.cos(angle)
+            wall_x = hitbox_x + self.modelinputs['vision_distances'][-1] * math.sin(angle)
+            wall_y = hitbox_y + self.modelinputs['vision_distances'][-1] * math.cos(angle)
             
             self.vision_lines.append(((hitbox_x, hitbox_y), (wall_x, wall_y)))
 
@@ -190,22 +190,22 @@ class Racecar:
         dy = racecar_y - rewardcoin_y
 
         # Reset the vector_to_reward object. Need to negate the inputs so that the vector is pointing in the direction from the racecar to the reward (due to pygame's coordinate system)
-        self.racecar_to_reward_vector = Vector2(-dx, -dy)
+        self.racecar_to_reward_vector = pygame.Vector2(-dx, -dy)
         
         # Calculate angles for the car and the angle to the reward coin in radians; will convert this to sine when cleaning data later on
-        self.angle_to_reward = atan2(dy,-dx)
+        self.angle_to_reward = math.atan2(dy,-dx)
         
         # Calculate the distance between the two points; round to calc precision
         if update_model_inputs:
-            self.modelinputs['distance_to_reward'] = hypot(dx, dy)
+            self.modelinputs['distance_to_reward'] = math.hypot(dx, dy)
 
 
     def calculate_velocity_vectors(self):
         """Function to calculate two velocity vectors for store. One is the velocity to the reward, the other, the relative velocity of the car based on the direction it is facing"""
         # Calculating the absolute velocity vectors using dot products on normalized vectors that relate to the direction of the car
-        v_norm_forward = Vector2(cos(radians(self.angle)), sin(radians(self.angle)))
-        v_norm_right = Vector2(cos(radians(self.angle-90)), sin(radians(self.angle-90)))
-        v_velocity_norm = Vector2(self.velocity[0], -self.velocity[1])       # Need to flip the y around since coordinates in pygame are backward
+        v_norm_forward = pygame.Vector2(math.cos(math.radians(self.angle)), math.sin(math.radians(self.angle)))
+        v_norm_right = pygame.Vector2(math.cos(math.radians(self.angle-90)), math.sin(math.radians(self.angle-90)))
+        v_velocity_norm = pygame.Vector2(self.velocity[0], -self.velocity[1])       # Need to flip the y around since coordinates in pygame are backward
         self.modelinputs['racecar_velocity'] = [v_velocity_norm.dot(v_norm_forward), v_velocity_norm.dot(v_norm_right)]
         
         # Calculating the magnitude of the velocity to the reward vector
@@ -321,7 +321,7 @@ class RewardCoin:
         self.radius = max(sprite.get_rect().width, sprite.get_rect().height)/2
         self.sprite_rect = self.sprite.get_rect(center=center)
         self.lines = sprite_to_lines(self.sprite_rect, self.sprite_rect.height, self.sprite_rect.width, 0)
-        self.top_left = Vector2(center[0] - self.sprite_rect.height // 2, center[1] - self.sprite_rect.width // 2)
+        self.top_left = pygame.Vector2(center[0] - self.sprite_rect.height // 2, center[1] - self.sprite_rect.width // 2)
 
 
     def get_radius(self):

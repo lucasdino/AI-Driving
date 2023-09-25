@@ -1,8 +1,8 @@
 import os
 import pygame
 import datetime
+import math
 import numpy as np
-from math import sin, cos, radians, sqrt, hypot
 from shapely.geometry import LineString
 
 
@@ -20,10 +20,10 @@ def shrink_sprite(sprite, scale):
 
 def rotate_point(point, center, angle):
     """Rotates a point around a center by a given angle."""
-    angle = radians(angle)
+    angle = math.radians(angle)
     dx, dy = np.subtract(point, center)
-    new_dx = dx * cos(angle) - dy * sin(angle)
-    new_dy = dx * sin(angle) + dy * cos(angle)
+    new_dx = dx * math.cos(angle) - dy * math.sin(angle)
+    new_dy = dx * math.sin(angle) + dy * math.cos(angle)
     return center[0] + new_dx, center[1] + new_dy
 
 def sprite_to_lines(sprite_rect, width, height, angle):
@@ -31,23 +31,23 @@ def sprite_to_lines(sprite_rect, width, height, angle):
     center = sprite_rect.center
 
     # Calculate front left coordinates
-    fl_x = center[0] - (cos(radians(angle))*(height/2)) + (cos(radians(90-angle))*(width/2))
-    fl_y = center[1] + (sin(radians(angle))*(height/2)) + (sin(radians(90-angle))*(width/2))
+    fl_x = center[0] - (math.cos(math.radians(angle))*(height/2)) + (math.cos(math.radians(90-angle))*(width/2))
+    fl_y = center[1] + (math.sin(math.radians(angle))*(height/2)) + (math.sin(math.radians(90-angle))*(width/2))
     front_left = (fl_x, fl_y)
     
     # Calculate front right coordinates
-    fr_x = center[0] - (cos(radians(angle))*(height/2)) - (cos(radians(90-angle))*(width/2))
-    fr_y = center[1] + (sin(radians(angle))*(height/2)) - (sin(radians(90-angle))*(width/2))
+    fr_x = center[0] - (math.cos(math.radians(angle))*(height/2)) - (math.cos(math.radians(90-angle))*(width/2))
+    fr_y = center[1] + (math.sin(math.radians(angle))*(height/2)) - (math.sin(math.radians(90-angle))*(width/2))
     front_right = (fr_x, fr_y)
     
     # Calculate bottom right coordinates
-    br_x = center[0] + (cos(radians(angle))*(height/2)) - (cos(radians(90-angle))*(width/2))
-    br_y = center[1] - (sin(radians(angle))*(height/2)) - (sin(radians(90-angle))*(width/2))
+    br_x = center[0] + (math.cos(math.radians(angle))*(height/2)) - (math.cos(math.radians(90-angle))*(width/2))
+    br_y = center[1] - (math.sin(math.radians(angle))*(height/2)) - (math.sin(math.radians(90-angle))*(width/2))
     bottom_right = (br_x, br_y)
     
     # Calculate bottom left coordinates
-    bl_x = center[0] + (cos(radians(angle))*(height/2)) + (cos(radians(90-angle))*(width/2))
-    bl_y = center[1] - (sin(radians(angle))*(height/2)) + (sin(radians(90-angle))*(width/2))
+    bl_x = center[0] + (math.cos(math.radians(angle))*(height/2)) + (math.cos(math.radians(90-angle))*(width/2))
+    bl_y = center[1] - (math.sin(math.radians(angle))*(height/2)) + (math.sin(math.radians(90-angle))*(width/2))
     bottom_left = (bl_x, bl_y)
     
     return [(front_left, front_right), (front_right, bottom_right), (bottom_right, bottom_left), (bottom_left, front_left)]
@@ -158,52 +158,8 @@ def game_exit_or_drawing(events, draw_toggle, racetrack_reward_toggle, drawing_m
                 drawing_module.handle_reward_drawing_events(event)
 
 
-# Defining variables externally that don't need to be recreated each time
-toggle_render_button_rect = pygame.Rect(10, 10, 80, 20)
-save_weights_button_rect = pygame.Rect(10, 40, 80, 20)
-
-RED = (255, 0, 0)
-PURPLE = (0, 255, 255)
-
-
-
-def render_toggle(screen, render_status, click_eligible = True, toggle_save = False):
-    """Class that lets the AI Training turn on and off rendering to speed up the training process but allow a window to peak in on"""
-
-    font = pygame.font.Font(None, 14)
-    
-    if render_status:
-        color = PURPLE
-    else:
-        color = RED
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-            quit()
-        if ((event.type == pygame.MOUSEBUTTONDOWN) and click_eligible):
-            click_eligible = False
-            if toggle_render_button_rect.collidepoint(event.pos):
-                render_status = not render_status
-            if save_weights_button_rect.collidepoint(event.pos):
-                toggle_save = True
-        if (event.type == pygame.MOUSEBUTTONUP):
-            click_eligible = True
-    
-    render_text = "Render: ON" if render_status else "Render: OFF"
-    render_text_font = font.render(render_text, True, (255, 255, 255))
-    save_text = font.render("Save Weights", True, (255, 255, 255))
-    
-    pygame.draw.rect(screen, color, toggle_render_button_rect)
-    pygame.draw.rect(screen, color, save_weights_button_rect)
-    screen.blit(render_text_font, (12,13))
-    screen.blit(save_text, (12,43))
-
-    pygame.display.flip()
-    return render_status, click_eligible, toggle_save
-    
-
 def calc_velocity(vel_vector):
-    return sqrt(vel_vector[0]**2 + vel_vector[1]**2)
+    return math.sqrt(vel_vector[0]**2 + vel_vector[1]**2)
 
 
 def manual_override_check(key, click_eligible, manual_override):
@@ -228,7 +184,7 @@ def scale_list(list, clipped_dist):
 
 
 def return_magnitude(vector):
-    return hypot(vector[0], vector[1])
+    return math.hypot(vector[0], vector[1])
 
 
 def normal_dist(input, mean, std_dev):

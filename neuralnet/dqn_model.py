@@ -1,11 +1,9 @@
 # Direction from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 import math
 import random
-from collections import namedtuple, deque
-from itertools import count
-from dqn_modules import ReplayMemory, DQN, Transition, instantiate_hardware, random_action_motion, early_training_random_action, convert_action_tensor_to_list, save_loss_to_csv
-from utils import render_toggle
 import datetime
+from itertools import count
+from .dqn_modules import *
 
 import torch
 import torch.nn as nn
@@ -47,10 +45,11 @@ class DQN_Model:
     LOSS_CALC_INDEX = 0
 
 
-    def __init__(self, TRAIN_INFER_TOGGLE):
+    def __init__(self, gamesettings):
         """Instantaite class of DQN Model"""
         
         # Create reference to racegame that will be passed through each time a new instance of racegame is created 
+        self.gamesettings = gamesettings
         self.racegame_session = None
         self.racegame_episodes = 0
         self.coins_since_last_print_window = 0
@@ -62,7 +61,7 @@ class DQN_Model:
         self.policy_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
         
         # If we want to be training our model, we need to set up different variables as well as instantiating an optimizer and a Memory object
-        if TRAIN_INFER_TOGGLE == "TRAIN":
+        if self.gamesettings['train_infer_toggle'] == 'TRAIN':
             
             # If we decide to train the model, we'll need a target net to address overfitting. We'll set up so that it is the same as the policy net
             self.target_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
@@ -78,7 +77,7 @@ class DQN_Model:
             self.memory = ReplayMemory(self.MEMORY_FRAMES)
             
         # If not training the model, can simply load existing parameters for run
-        elif TRAIN_INFER_TOGGLE == "INFER":
+        elif self.gamesettings['train_infer_toggle'] == 'INFER':
             self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-08.23.23-21.37'))
 
         else:
