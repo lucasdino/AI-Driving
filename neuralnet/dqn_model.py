@@ -28,7 +28,7 @@ class DQN_Model:
     GAMMA = 0.995
     EPS_START = 0.9
     EPS_END = 0.2
-    EPS_DECAY = 100000
+    EPS_DECAY = 10000
     PRETRAIN_STEPS = 0
     TAU = 1e-4
     LR = 1e-6
@@ -42,6 +42,8 @@ class DQN_Model:
     RENDER_CLICK = True
     SAVE_WEIGHTS_FROM_GAME = False
     LOSS_CALC_INDEX = 0
+
+    IMPORT_WEIGHTS_FOR_TRAINING = True
 
 
     def __init__(self, gamesettings):
@@ -62,9 +64,14 @@ class DQN_Model:
         # If we want to be training our model, we need to set up different variables as well as instantiating an optimizer and a Memory object
         if self.gamesettings['train_infer_toggle'] == 'TRAIN':
             
-            # If we decide to train the model, we'll need a target net to address overfitting. We'll set up so that it is the same as the policy net
             self.target_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
-            self.target_net.load_state_dict(self.policy_net.state_dict())
+            
+            if self.IMPORT_WEIGHTS_FOR_TRAINING:
+                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-09.26.23-19.38'))
+                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-09.26.23-19.38'))
+                self.EPS_DECAY = 100
+            else:
+                self.target_net.load_state_dict(self.policy_net.state_dict())
 
             # Create vars to track training steps / list to show loss in real-time
             # One episode relates to one attempt in the 'Game Instance' (i.e., you finish # of laps or you crash)
@@ -77,7 +84,7 @@ class DQN_Model:
             
         # If not training the model, can simply load existing parameters for run
         elif self.gamesettings['train_infer_toggle'] == 'INFER':
-            self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-08.23.23-21.37'))
+            self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-09.26.23-19.38'))
 
         else:
             print("***ALERT*** Please ensure 'TRAIN_INFER_TOGGLE' is set to either 'TRAIN' or 'INFER'")
@@ -150,7 +157,7 @@ class DQN_Model:
                                             batch.next_state)), device=self.device, dtype=torch.bool)
         non_final_next_states = torch.cat([s for s in batch.next_state
                                                     if s is not None])
-        state_batch = torch.cat(batch.state)        # Outputs a tensor of dim 12 x 128 (i.e., STATE x BATCH)
+        state_batch = torch.cat(batch.state)        # Outputs a tensor of dim 17 x 128 (i.e., STATE x BATCH)
         action_batch = torch.cat(batch.action)      # Outputs a tensor of dim 5 x 128 (i.e., ACTION x BATCH)
         reward_batch = torch.cat(batch.reward)      # Outputs a tensor of dim 128
 
@@ -172,7 +179,7 @@ class DQN_Model:
         expected_state_action_values = (next_state_values * self.GAMMA) + reward_batch
 
         # Compute Huber Loss
-        criterion = nn.SmoothL1Loss()
+        criterion = nn.HuberLoss()
         loss = criterion(state_action_values, expected_state_action_values)
 
         # Append loss calculation for later printout
@@ -182,7 +189,7 @@ class DQN_Model:
         self.optimizer.zero_grad()
         loss.backward()
         # In-place gradient clipping
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 250)
         self.optimizer.step()
 
 
@@ -199,7 +206,7 @@ class DQN_Model:
                 action = self.select_action_in_training(state)
                 state, reward, crashed, laps_finished, time_limit = self.racegame_session.racegame.ai_train_step(action, self.RENDER)
                 
-                reward = torch.tensor([reward], device=self.device)
+                reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
                 done = crashed or laps_finished or time_limit
 
                 if crashed:
@@ -208,7 +215,7 @@ class DQN_Model:
                     next_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
 
                 # Store the transition in memory
-                t_action = torch.tensor(action, dtype=torch.long, device=self.device).unsqueeze(0)
+                t_action = torch.tensor(action, dtype=torch.float32, device=self.device).unsqueeze(0)
                 t_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
                 self.memory.push(t_state, t_action, next_state, reward)
 

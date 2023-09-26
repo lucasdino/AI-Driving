@@ -224,8 +224,8 @@ class Racecar:
             if "vision_distances" in key:
                 clipped_distance = 200
                 value = scale_list(value, clipped_distance)
-                mean, std_dev = (0.05, 0.78)                  # Gathered from empirical data
-                value = normal_dist(value, mean, std_dev)
+                # mean, std_dev = (0.05, 0.78)                  # Gathered from empirical data
+                # value = normal_dist(value, mean, std_dev)
                 # value = [exp(-((max(x-5,0))/25)) for x in value]
                 # value = [max(x,1)/40 for x in value]
             elif "rel_angle_to_reward" in key:
@@ -236,15 +236,15 @@ class Racecar:
                 # pass
                 dist_less_radius = max(value-reward_coin_radius, 1)
                 value = dist_less_radius/40
-                mean, std_dev = (3, 1.8)                  # Gathered from empirical data based on scaling by 40
-                value = normal_dist(value, mean, std_dev)
-                # value = exp(-(dist_less_radius/25))
+                # mean, std_dev = (3, 1.8)                  # Gathered from empirical data based on scaling by 40
+                # value = normal_dist(value, mean, std_dev)
+                # # value = exp(-(dist_less_radius/25))
             elif "velocity_to_reward" in key:
                 include = False
                 # value = value / 3
             elif "racecar_velocity" in key:
-                # include = False
                 pass
+                # include = False
                 # value = value / 3
             elif "last_action_index" in key:
                 new_list = [0] * 5
@@ -256,7 +256,7 @@ class Racecar:
                 flat_clean_list.extend(value) if isinstance(value, list) else flat_clean_list.append(value)
         
         # rounded_list = [round(x, 2) for x in flat_clean_list]
-        # print(f"{rounded_list}")
+        # print(f"{rounded_list[8:]}")
         
         return flat_clean_list
 
