@@ -14,8 +14,10 @@ def load_session_assets(gamesettings):
     """
     assets = {
         "GameBackground": _load_sprite("RacetrackSprite", False),
-        "CoinSprite": _shrink_sprite(_load_sprite("MarioCoin"), 0.02),
         "RacecarSprite": _shrink_sprite(_load_sprite("RacecarSprite"), 0.15),
+        "RacecarCorners": None,
+        "CoinSprite": _shrink_sprite(_load_sprite("MarioCoin"), 0.02),
+        "CoinRadius": None, 
         "RacetrackLines": _load_lines_from_csv(),
         "RewardLocations": _load_rewards_from_csv(),
         "RacetrackLines_GridMap": None,
@@ -23,8 +25,10 @@ def load_session_assets(gamesettings):
         "GridMap_Boxes": None
     }
 
-    grid_map, rtree, grid_boxes = _init_grid_map(gamesettings['grid_dims'], assets["RacetrackLines"])
+    assets["RacecarCorners"] = _calc_racecar_corners(assets["RacecarSprite"])
+    assets["CoinRadius"] = _get_coin_radius(assets["CoinSprite"])
 
+    grid_map, rtree, grid_boxes = _init_grid_map(gamesettings['grid_dims'], assets["RacetrackLines"])
     assets["RacetrackLines_GridMap"] = grid_map
     assets["GridMap_RTree"] = rtree
     assets["GridMap_Boxes"] = grid_boxes
@@ -42,6 +46,27 @@ def _load_sprite(name, with_alpha=True):
 def _shrink_sprite(sprite, scale):
     """Scales down the sprite."""
     return pygame.transform.scale(sprite, tuple(int(dim * scale) for dim in (sprite.get_width(), sprite.get_height())))
+
+
+def _calc_racecar_corners(sprite):
+  """"Calculate the corners wrt the center of the racecar sprite for easier future calculation
+  Returns [2x4] np.ndarray"""
+  # Since we start car pointing right to align w/ unit circle for rotations, width right here really means 'height'
+  width = sprite.get_height()
+  height = sprite.get_width()
+
+  # Calculate relative corners from center piece
+  front_left = [width/2, height/2]
+  front_right = [-width/2, height/2]
+  bottom_left = [width/2, -height/2]
+  bottom_right = [-width/2, -height/2]
+
+  return np.array([front_left, front_right, bottom_left, bottom_right]).T
+
+
+def _get_coin_radius(sprite):
+    """Simple getter for the coin's radius"""
+    return max(sprite.get_rect().width, sprite.get_rect().height)/2
 
     
 def _load_lines_from_csv():

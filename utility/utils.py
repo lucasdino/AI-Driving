@@ -5,30 +5,16 @@ import shapely.geometry as geom
 import rtree
 
 
-def sprite_to_lines(sprite_rect, width, height, angle):
-    """Convert sprite into a list of lines that draw the border of the car and a list that draw the vision lines"""    
-    center = sprite_rect.center
-    angle_rotated = np.pi/2 - angle
+def get_rotated_rc_lines(center, relative_corners, angle):
+    """Returns list of tuples relating to the corners of the racecar"""    
+    rotation_matrix = np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle),  np.cos(angle)]])
+    rotated_rel_corners = rotation_matrix @ relative_corners            # relative_corners is a [2x4] matrix of the corners wrt the center
+    rotated_corners = rotated_rel_corners + center.T                    # center is [1x2] matrix -> need to transpose then it will broadcast
 
-    # Calculate front left coordinates
-    fl_x = center[0] - (np.cos(angle)*(height/2)) + (np.cos(angle_rotated)*(width/2))
-    fl_y = center[1] + (np.sin(angle)*(height/2)) + (np.sin(angle_rotated)*(width/2))
-    front_left = (fl_x, fl_y)
-    
-    # Calculate front right coordinates
-    fr_x = center[0] - (np.cos(angle)*(height/2)) - (np.cos(angle_rotated)*(width/2))
-    fr_y = center[1] + (np.sin(angle)*(height/2)) - (np.sin(angle_rotated)*(width/2))
-    front_right = (fr_x, fr_y)
-    
-    # Calculate bottom right coordinates
-    br_x = center[0] + (np.cos(angle)*(height/2)) - (np.cos(angle_rotated)*(width/2))
-    br_y = center[1] - (np.sin(angle)*(height/2)) - (np.sin(angle_rotated)*(width/2))
-    bottom_right = (br_x, br_y)
-    
-    # Calculate bottom left coordinates
-    bl_x = center[0] + (np.cos(angle)*(height/2)) + (np.cos(angle_rotated)*(width/2))
-    bl_y = center[1] - (np.sin(angle)*(height/2)) + (np.sin(angle_rotated)*(width/2))
-    bottom_left = (bl_x, bl_y)
+    front_left = (rotated_corners[0,0], rotated_corners[1,0])
+    front_right = (rotated_corners[0,1], rotated_corners[1,1])
+    bottom_left = (rotated_corners[0,2], rotated_corners[1,2])
+    bottom_right = (rotated_corners[0,3], rotated_corners[1,3])
     
     return [(front_left, front_right), (front_right, bottom_right), (bottom_right, bottom_left), (bottom_left, front_left)]
 

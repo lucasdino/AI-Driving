@@ -29,8 +29,8 @@ class RaceGame:
         self.game_background = GameBackground(self.session_assets["GameBackground"])
         self.racetrack = Racetrack(self.gamesettings['random_coin_start'], self.session_assets["RacetrackLines"], self.session_assets["RewardLocations"])
         self.coinsprite = session_assets["CoinSprite"]
-        self.rewardcoin = RewardCoin(self.racetrack.rewards[self.racetrack.reward_coin_index], self.coinsprite)
-        self.racecar = Racecar(self.racetrack.start_position, self.session_assets["RacecarSprite"], self.rewardcoin)
+        self.rewardcoin = RewardCoin(self.session_assets, self.racetrack.rewards[self.racetrack.reward_coin_index])
+        self.racecar = Racecar(self.session_assets, self.racetrack.start_position, self.rewardcoin)
         self.racecar_previous_action = 1
         
         # Set game states and timers
@@ -50,7 +50,7 @@ class RaceGame:
 
         # Stores instance of DQN model that was passed through if set to 'AI' and calculates first instance of the racecar's state
         self.model = model
-        self._update_racecar_state_vars(instantiate=True)
+        self._update_racecar_state(instantiate=True)
 
 
     def human_main_loop(self):
@@ -80,21 +80,18 @@ class RaceGame:
         # If user presses the 'Q' key, it toggles between manual override and back to model inference
         self.session_metadata['manual_override'], self._CLICKELIGIBILITY_MANUALOVERRIDE = manual_override_check(pygame.key.get_pressed(), self._CLICKELIGIBILITY_MANUALOVERRIDE, self.session_metadata['manual_override'])
         
-        if self.session_metadata['manual_override']:
-            self._handle_ai_input(keypress_to_action(pygame.key.get_pressed(), True))
-        else:    
-            self._handle_ai_input(action)
+        if self.session_metadata['manual_override']: self._handle_ai_input(keypress_to_action(pygame.key.get_pressed(), True))
+        else: self._handle_ai_input(action)
         
         self._update_game_logic()
         if render:
             self._TRAINING_RENDER_TOGGLE = True
             self._render_game()
-            # self.clock.tick(40)
         
         if self.running == False:
             self.session_metadata['attempts'] += 1
 
-        state = self.racecar.return_clean_model_state(self.rewardcoin.get_radius())
+        state = self.racecar.return_clean_model_state()
         reward = self.reward_change
         crashed = True if self.game_termination_reason == "Crash" else False
         laps_finished = True if self.game_termination_reason == "Lap(s) Completed" else False
@@ -103,7 +100,7 @@ class RaceGame:
         return state, reward, crashed, laps_finished, time_limit
 
 
-    def _update_racecar_state_vars(self, last_frame_action=[], instantiate=False):
+    def _update_racecar_state(self, last_frame_action=[], instantiate=False):
         """Function to update racecar environment variables"""
         self.racecar.calculate_vision_lines(self.gamesettings['grid_dims'] , self.session_assets)
         self.prior_reward_coin_distance = self.racecar.modelinputs['distance_to_reward']
@@ -123,8 +120,8 @@ class RaceGame:
         # Handle movement then update racecar velocity and position. Once done, update the environment data (vision lines, reward lines)
         action_to_motion(self.racecar, self.frame_action, self._ACCELERATION, self._TURNSPEED)
         self.racecar.apply_drag(self._DRAG)
-        self._update_racecar_state_vars(self.frame_action)
-        # self.racecar.return_clean_model_state(self.rewardcoin.get_radius())
+        self._update_racecar_state(self.frame_action)
+        # self.racecar.return_clean_model_state()
 
 
     def _handle_ai_input(self, training_action=None):
@@ -135,7 +132,7 @@ class RaceGame:
         game_exit_or_drawing(pygame.event.get(), self.gamesettings['draw_toggle'], self.gamesettings['racetrack_reward_toggle'], self.drawing_module)
         
         if training_action == None:
-            self.frame_action = self.model.run_model_inference(self.racecar.return_clean_model_state(self.rewardcoin.get_radius()))
+            self.frame_action = self.model.run_model_inference(self.racecar.return_clean_model_state())
         else:
             self.frame_action = training_action
 
@@ -143,7 +140,7 @@ class RaceGame:
         # Once done, update the environment data (vision lines, reward lines)
         action_to_motion(self.racecar, self.frame_action, self._ACCELERATION, self._TURNSPEED, True)
         self.racecar.apply_drag(self._DRAG)
-        self._update_racecar_state_vars(self.frame_action)
+        self._update_racecar_state(self.frame_action)
 
 
     def _update_game_logic(self):
@@ -203,7 +200,7 @@ class RaceGame:
             
             self.racetrack.update_reward_coin_index()
             self.reward_change += Coin_Reward
-            self.rewardcoin = RewardCoin(self.racetrack.rewards[self.racetrack.reward_coin_index], self.coinsprite)
+            self.rewardcoin = RewardCoin(self.session_assets, self.racetrack.rewards[self.racetrack.reward_coin_index])
         
         # Check for violation of time limit
         if ((pygame.time.get_ticks() - self.start_time) // 1000) > self._TIMELIMIT:
@@ -213,9 +210,11 @@ class RaceGame:
         # Update score
         self.cumulative_reward += self.reward_change
 
+
     def get_time(self):
         """Simple getter function for the DQN module to be able to calculate fps"""
         return pygame.time.get_ticks()
+
 
     def _render_game(self):
         """

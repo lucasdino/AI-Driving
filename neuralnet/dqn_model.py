@@ -197,7 +197,7 @@ class DQN_Model:
         # Each episode refers to an 'attempt' in the game (i.e., car crashes, finishes # of laps, or is cut off because of time limit)
         for _ in range(self.max_episodes):
             
-            state = self.racegame_session.racegame.racecar.return_clean_model_state(self.racegame_session.racegame.rewardcoin.get_radius())
+            state = self.racegame_session.racegame.racecar.return_clean_model_state()
             state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         
             for t in count():

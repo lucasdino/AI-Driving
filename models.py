@@ -6,13 +6,13 @@ from utility.utils import *
 class Racecar:
     """Class representing the racecar, which includes both the sprite and hit box of lines."""
     
-    def __init__(self, position, sprite, next_reward_coin):
+    def __init__(self, session_assets, position, next_reward_coin):
         
+        self.session_assets = session_assets
         self.position = np.array([[position[0], position[1]]])
         self.velocity = np.array([[0, 0]])
 
-        self.sprite = sprite
-        self.linesegments, self.vision_lines = [], []
+        self.hitbox_lines, self.vision_lines = [], []
 
         # Set up metavariables and align racecar to point to next reward coin
         self._instantiate_racecar(next_reward_coin)
@@ -44,42 +44,29 @@ class Racecar:
 
 
     def _update_rotated_sprite(self):
-        self.rotated_sprite = pygame.transform.rotate(self.sprite, np.degrees(self.angle))
-        self.rotated_sprite_rect = self.rotated_sprite.get_rect(center=tuple(self.position[0]))
-        self.linesegments = sprite_to_lines(self.rotated_sprite_rect, self._sprite_w, self._sprite_l, self.angle)
+        self.rotated_sprite = pygame.transform.rotate(self.session_assets["RacecarSprite"], np.degrees(self.angle))
+        self.hitbox_lines = get_rotated_rc_lines(self.position, self.session_assets["RacecarCorners"], self.angle+np.pi/2)
     
 
     def _instantiate_racecar(self, next_reward_coin):
         """Self-explanatory class name. Purpose is to set up necessary variables for later call and align racecar to point toward next reward coin"""
-        
-        # Start by setting necessary class metavariables. Seems backward - but since the car starts such that the sprite is facing to the right, we set up so that
-        # the metavariables are labeled relative to the racecar for more intuitive understanding later in code 
-        self._sprite_w = self.sprite.get_rect(center=tuple(self.position[0])).height
-        self._sprite_l = self.sprite.get_rect(center=tuple(self.position[0])).width
-        
-        # Set other metavariables. Need to calculate the angle to the next reward, then set the 'self.angle' to that value so that we can correctly align the racecar at the start of the game
-        self.angle_to_reward = 0
-        self.racecar_to_reward_vector = None
+        self.angle_to_reward, self.racecar_to_reward_vector = None, None
         self.calculate_reward_line(next_reward_coin, False)
         self.angle = 2*np.random.random()*np.pi
-        # self.angle = (math.degrees(self.angle_to_reward))
-        # self.angle += 180 if np.random.random() >= 0.5 else 0
         
 
     def draw(self, screen, display_hitboxes):
         """Draws the racecar lines and vision lines on the provided screen."""
         
         if display_hitboxes:
-            # Racecar hitbox
-            for line in self.linesegments:
+            for line in self.hitbox_lines: # Racecar hitbox
                 pygame.draw.line(screen, (0, 0, 255), line[0], line[1], 4)
             
-            # Racecar vision lines and reward line
             for line in self.vision_lines:
                 pygame.draw.line(screen, (200,100,0), line[0], line[1], 2)
             self._draw_reward_line(screen)
                 
-        screen.blit(self.rotated_sprite, self.rotated_sprite_rect)
+        screen.blit(self.rotated_sprite, self.rotated_sprite.get_rect(center=tuple(self.position[0])))
 
 
     def _draw_reward_line(self, screen):
@@ -131,12 +118,11 @@ class Racecar:
         Checks for a collision between the racecar and a given racetrack line / reward coin.
         Returns True if a collision is detected, False otherwise.
         """
-        for line in self.linesegments:
+        for line in self.hitbox_lines:
             A, B = line_list[0], line_list[1]
             C, D = line
             if is_counterclockwise(A, C, D) != is_counterclockwise(B, C, D) and is_counterclockwise(A, B, C) != is_counterclockwise(A, B, D): 
                 return True
-
         return False
     
 
@@ -161,7 +147,7 @@ class Racecar:
         vision_line_angles = [0, np.pi/3, (2*np.pi)/3, np.pi, (4*np.pi)/3, (5*np.pi)/3]
         # vision_line_angles = [0, pi/2, pi, (3*pi)/2]
 
-        center = self.rotated_sprite_rect.center
+        center = (self.position[0,0], self.position[0,1])
         self.vision_lines = []
         self.modelinputs['vision_distances'] = []
         neighboring_lines = get_neighbor_lines(session_assets, grid_dims, center)
@@ -170,7 +156,7 @@ class Racecar:
             angle = self.angle + i
             # Start by calculating (based on angle) the dist (pixels) to car's hitbox. Then calculate the dist to the nearest racetrack wall (and subtract dist from hitbox
             # to get dist from hitbox to nearest wall)
-            dist_to_car_hitbox = min(nearest_line_distance(center, angle, line) for line in self.linesegments)
+            dist_to_car_hitbox = min(nearest_line_distance(center, angle, line) for line in self.hitbox_lines)
             self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle, line) for line in neighboring_lines) - dist_to_car_hitbox)
             
             # Then calculate the coordinates for the points on the hitbox and on the wall
@@ -214,7 +200,7 @@ class Racecar:
         self.modelinputs['velocity_to_reward'] = (self.velocity@v_norm_to_reward.T).item()
 
 
-    def return_clean_model_state(self, reward_coin_radius):
+    def return_clean_model_state(self):
         """Function to convert the 'model inputs' dictionary into a 1-D array"""
         flat_clean_list = []
         for key, value in self.modelinputs.items():
@@ -227,7 +213,7 @@ class Racecar:
             elif "rel_angle_to_reward" in key:
                 value = 0.5 - abs(value)
             elif "distance_to_reward" in key:
-                dist_less_radius = max(value-reward_coin_radius, 1)
+                dist_less_radius = max(value-self.session_assets["CoinRadius"], 1)
                 value = dist_less_radius/40
             elif "velocity_to_reward" in key:
                 include = False
@@ -279,18 +265,12 @@ class Racetrack:
 class RewardCoin:
     """Class representing the active reward coin on the track"""
 
-    def __init__(self, center, sprite):
-        self.sprite = sprite
+    def __init__(self, session_assets, center):
+        self.sprite = session_assets["CoinSprite"]
+        self.radius = session_assets["CoinRadius"]
         self.center = center
-        self.radius = max(sprite.get_rect().width, sprite.get_rect().height)/2
         self.sprite_rect = self.sprite.get_rect(center=center)
-        self.lines = sprite_to_lines(self.sprite_rect, self.sprite_rect.height, self.sprite_rect.width, 0)
         self.top_left = np.array([[center[0] - self.sprite_rect.height // 2, center[1] - self.sprite_rect.width // 2]])
-
-
-    def get_radius(self):
-        """Simple getter for getting the reward coin's radius"""
-        return self.radius
 
 
     def draw(self, screen, display_hitboxes):
