@@ -13,26 +13,24 @@ class RaceGame:
     _DRAG = 0.9
 
     # Other metavariables
-    _SCREENSIZE = (800, 600)
     _LAPS = 2
     _TIMELIMIT = _LAPS * 20
     _TRAINING_RENDER_TOGGLE = False
     _CLICKELIGIBILITY_MANUALOVERRIDE = True
 
-    def __init__(self, gamesettings, model, session_metadata):
+    def __init__(self, screen, gamesettings, model, session_metadata, session_assets):
         """Initialize the game, including Pygame, screen, sprites, and other game parameters."""
 
-        self._initialize_pygame()
-
         # Set game env variables
-        self.gamesettings, self.session_metadata = gamesettings, session_metadata
+        self.gamesettings, self.session_metadata, self.session_assets = gamesettings, session_metadata, session_assets
+        self.screen = screen
         
         # Load assets and create objects
-        self.game_background = GameBackground(load_sprite("RacetrackSprite", False))
-        self.racetrack = Racetrack(self.gamesettings['random_coin_start'])
-        self.coinsprite = shrink_sprite(load_sprite("MarioCoin"), 0.02) 
+        self.game_background = GameBackground(self.session_assets["GameBackground"])
+        self.racetrack = Racetrack(self.gamesettings['random_coin_start'], self.session_assets["RacetrackLines"], self.session_assets["RewardLocations"])
+        self.coinsprite = session_assets["CoinSprite"]
         self.rewardcoin = RewardCoin(self.racetrack.rewards[self.racetrack.reward_coin_index], self.coinsprite)
-        self.racecar = Racecar(self.racetrack.start_position, shrink_sprite(load_sprite("RacecarSprite"), 0.15), self.rewardcoin)
+        self.racecar = Racecar(self.racetrack.start_position, self.session_assets["RacecarSprite"], self.rewardcoin)
         self.racecar_previous_action = 1
         
         # Set game states and timers
@@ -53,13 +51,6 @@ class RaceGame:
         # Stores instance of DQN model that was passed through if set to 'AI' and calculates first instance of the racecar's state
         self.model = model
         self._update_racecar_state_vars(instantiate=True)
-
-
-    def _initialize_pygame(self):
-        """Initialize Pygame and set the window title."""
-        pygame.init()
-        pygame.display.set_caption("AI Driver")
-        self.screen = pygame.display.set_mode(self._SCREENSIZE)
 
 
     def human_main_loop(self):
@@ -114,7 +105,7 @@ class RaceGame:
 
     def _update_racecar_state_vars(self, last_frame_action=[], instantiate=False):
         """Function to update racecar environment variables"""
-        self.racecar.calculate_vision_lines(self.racetrack.lines)
+        self.racecar.calculate_vision_lines(self.gamesettings['grid_dims'] , self.session_assets)
         self.prior_reward_coin_distance = self.racecar.modelinputs['distance_to_reward']
         self.racecar.calculate_reward_line(self.rewardcoin)
         self.racecar.calculate_velocity_vectors()
@@ -176,6 +167,7 @@ class RaceGame:
         PixelsToWall_PenaltyThreshold = 10
         ProximityToWall_Multiplier = 2
         LackOfMotion_Multiplier_Penalty = 4
+        NoMotion_Penalty = 3
         BehaviorChange_Penalty = 3
         Crash_Penalty = 4000
 
@@ -192,13 +184,14 @@ class RaceGame:
         if self.running and _car_survived_frame:
             # self.rewardchange += FacingCoin_Reward - (abs(self.racecar.modelinputs['rel_angle_to_reward']) * 2 * FacingCoin_Reward)
             self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 3)
-            self.reward_change -= max(0, PixelsToWall_PenaltyThreshold-min(self.racecar.modelinputs['vision_distances']))*ProximityToWall_Multiplier
+            self.reward_change -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
+            self.reward_change -= NoMotion_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
+            # self.reward_change -= max(0, PixelsToWall_PenaltyThreshold-min(self.racecar.modelinputs['vision_distances']))*ProximityToWall_Multiplier
             # self.rewardchange -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
-            self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0,0])+abs(self.racecar.velocity[0,1])), 0)
+            # self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0,0])+abs(self.racecar.velocity[0,1])), 0)
             # self.rewardchange += BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 1 else 0
             # self.rewardchange -= BehaviorChange_Penalty/2 if (self.racecar.modelinputs['last_action_index'] == 0 or self.racecar.modelinputs['last_action_index'] == 2) else 0
             # self.rewardchange -= BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
-            self.reward_change -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
 
         # Check for collisions with the coins; if so add to score / reward function
         if self.rewardcoin.intersect_with_reward(self.racecar.modelinputs['distance_to_reward']):
@@ -220,6 +213,9 @@ class RaceGame:
         # Update score
         self.cumulative_reward += self.reward_change
 
+    def get_time(self):
+        """Simple getter function for the DQN module to be able to calculate fps"""
+        return pygame.time.get_ticks()
 
     def _render_game(self):
         """

@@ -1,6 +1,4 @@
 import pygame
-import os
-import csv
 import numpy as np
 from utility.utils import *
 
@@ -153,25 +151,27 @@ class Racecar:
         self.modelinputs['rel_angle_to_reward'] = (np.arctan2(np.sin(t_1 - t_2), np.cos(t_1 - t_2)))/np.pi 
 
 
-    def calculate_vision_lines(self, racetrack_line):
+    def calculate_vision_lines(self, grid_dims, session_assets):
         """
         Calculates the distance to the nearest racetrack line for vision lines.
         Updates self.visiondist and self.visionlines.
         """
         # Manually coding in the different vision lines - this creates more frequent lines at the front of the car and less frequent lines at the side / back. In rads
-        vision_line_angles = [0, np.pi/3, np.pi/2, (2*np.pi)/3, np.pi, (4*np.pi)/3, (3*np.pi)/2, (5*np.pi)/3]
+        # vision_line_angles = [0, np.pi/3, np.pi/2, (2*np.pi)/3, np.pi, (4*np.pi)/3, (3*np.pi)/2, (5*np.pi)/3]
+        vision_line_angles = [0, np.pi/3, (2*np.pi)/3, np.pi, (4*np.pi)/3, (5*np.pi)/3]
         # vision_line_angles = [0, pi/2, pi, (3*pi)/2]
 
         center = self.rotated_sprite_rect.center
         self.vision_lines = []
         self.modelinputs['vision_distances'] = []
+        neighboring_lines = get_neighbor_lines(session_assets, grid_dims, center)
 
         for i in vision_line_angles:
             angle = self.angle + i
             # Start by calculating (based on angle) the dist (pixels) to car's hitbox. Then calculate the dist to the nearest racetrack wall (and subtract dist from hitbox
             # to get dist from hitbox to nearest wall)
             dist_to_car_hitbox = min(nearest_line_distance(center, angle, line) for line in self.linesegments)
-            self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle, line) for line in racetrack_line) - dist_to_car_hitbox)
+            self.modelinputs['vision_distances'].append(min(nearest_line_distance(center, angle, line) for line in neighboring_lines) - dist_to_car_hitbox)
             
             # Then calculate the coordinates for the points on the hitbox and on the wall
             hitbox_x = center[0] + dist_to_car_hitbox * np.sin(angle)
@@ -224,28 +224,15 @@ class Racecar:
             if "vision_distances" in key:
                 clipped_distance = 200
                 value = scale_list(value, clipped_distance)
-                # mean, std_dev = (0.05, 0.78)                  # Gathered from empirical data
-                # value = normal_dist(value, mean, std_dev)
-                # value = [exp(-((max(x-5,0))/25)) for x in value]
-                # value = [max(x,1)/40 for x in value]
             elif "rel_angle_to_reward" in key:
-                # include = False
-                pass
+                value = 0.5 - abs(value)
             elif "distance_to_reward" in key:
-                # include = False
-                # pass
                 dist_less_radius = max(value-reward_coin_radius, 1)
                 value = dist_less_radius/40
-                # mean, std_dev = (3, 1.8)                  # Gathered from empirical data based on scaling by 40
-                # value = normal_dist(value, mean, std_dev)
-                # # value = exp(-(dist_less_radius/25))
             elif "velocity_to_reward" in key:
                 include = False
-                # value = value / 3
             elif "racecar_velocity" in key:
                 pass
-                # include = False
-                # value = value / 3
             elif "last_action_index" in key:
                 new_list = [0] * 5
                 new_list[value] = 1
@@ -264,35 +251,11 @@ class Racecar:
 class Racetrack:
     """Class representing the racetrack, which consists of a list of border lines and rewards."""
     
-    def __init__(self, start_at_random_coin):
-        self.lines = []
-        self.rewards = []
-        
-        self._load_rewards_from_csv()
-        self._load_lines_from_csv()
-
+    def __init__(self, start_at_random_coin, lines, rewards):
+        self.lines, self.rewards = lines, rewards
         self.reward_coin_index = np.random.randint(len(self.rewards)) if start_at_random_coin else 0
         self.start_position = (self.rewards[self.reward_coin_index])
         self.update_reward_coin_index()
-
-        
-    def _load_lines_from_csv(self):
-        """Loads race track lines from a CSV file."""
-        filename = os.path.join("assets/track", "drawn_racetrack-06.05.23-01.10.csv")
-        with open(filename, "r", newline="") as csvfile:
-            csv_reader = csv.reader(csvfile)
-            for row in csv_reader:
-                temp_line = [tuple(map(int, point.strip('()').split(', '))) for point in row]
-                self.lines.append(temp_line)
-
-
-    def _load_rewards_from_csv(self):
-        """Loads rewards from a CSV file."""
-        filename = os.path.join("assets/track", "drawn_reward-06.05.23-01.32.csv")
-        with open(filename, "r", newline="") as csvfile:
-            csv_reader = csv.reader(csvfile)
-            for row in csv_reader:
-                self.rewards.append((int(row[0]), int(row[1])))
 
 
     def draw(self, screen, display_hitboxes):

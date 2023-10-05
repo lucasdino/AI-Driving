@@ -1,20 +1,8 @@
 import pygame
-import os
 import datetime
 import numpy as np
 import shapely.geometry as geom
-
-
-def load_sprite(name, with_alpha=True):
-    """Loads in the sprite from the assets folder."""
-    path = os.path.join("assets", f"{name}.png")
-    loaded_sprite = pygame.image.load(path)
-    return loaded_sprite.convert_alpha() if with_alpha else loaded_sprite.convert()
-
-
-def shrink_sprite(sprite, scale):
-    """Scales down the sprite."""
-    return pygame.transform.scale(sprite, tuple(int(dim * scale) for dim in (sprite.get_width(), sprite.get_height())))
+import rtree
 
 
 def sprite_to_lines(sprite_rect, width, height, angle):
@@ -176,7 +164,7 @@ def scale_list(list, clipped_dist):
 
 
 def normal_dist(input, mean, std_dev):
-    """Class that takes an input and returns the same input but scaled to mean=0 and std_dev = 1 based on empirical observations"""
+    """Func that takes an input and returns the same input but scaled to mean=0 and std_dev = 1 based on empirical observations"""
     if isinstance(input, list):
         for i in range(len(input)):
             input[i] = (input[i] - mean)/std_dev
@@ -184,3 +172,41 @@ def normal_dist(input, mean, std_dev):
         input = (input - mean)/std_dev
 
     return input
+
+
+def get_neighbor_lines(session_assets, grid_dims, racecar_center):
+    """"Function to return the lines from the neighboring gridboxes to enable more efficient mid-game compute"""
+    rc_point = geom.Point(racecar_center)
+
+    # Find potential matches quickly using R-tree
+    grid_id = 0
+    for i in session_assets["GridMap_RTree"].intersection((rc_point.x, rc_point.y, rc_point.x, rc_point.y)):
+        if rc_point.within(session_assets["GridMap_Boxes"][i]):
+            grid_id = i
+            break
+    
+    def _neighbor_boxes(id):
+      grid_r, grid_c = grid_dims
+      boxes = [id]
+      
+      left = (id%grid_c == 0)             # Means that 'id' box is in the far left column
+      top = (id < grid_c)                 # Means that 'id' box is on the top row
+      right = (id%grid_c == grid_c-1) 
+      bottom = (id >= grid_c*(grid_r-1))
+
+      if not left: boxes.append(id-1)
+      if not top: boxes.append(id-grid_c)
+      if not right: boxes.append(id+1)
+      if not bottom: boxes.append(id+grid_c)
+      if ((not left) and (not top)): boxes.append(id-grid_c-1)
+      if ((not left) and (not bottom)): boxes.append(id+grid_c-1)
+      if ((not right) and (not top)): boxes.append(id-grid_c+1)
+      if ((not right) and (not bottom)): boxes.append(id+grid_c+1)
+
+      return boxes
+    
+    lines_to_check = []
+    for i in _neighbor_boxes(grid_id):
+      lines_to_check.extend(session_assets["RacetrackLines_GridMap"].get(i, []))
+    
+    return [session_assets["RacetrackLines"][idx] for idx in list(set(lines_to_check))]

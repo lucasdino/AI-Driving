@@ -3,6 +3,8 @@
 # ------------------------------------------
 # Additional information about game settings
 # ------------------------------------------
+# screensize - Tuple relating to the screensize of our PyGame window
+# grid_dims - [r x c] of how many grid boxes we will use in our gridding of the racetrack lines
 # human_ai_toggle - Set who will be driving the car (player input or AI via training or inference)
 # train_infer_toggle - Set 'TRAIN' if model is training; otherwise, set 'INFER' if model weights are in 'assets/nn_params' and you'd like model to drive
 # draw_toggle - Set 'True' to enable drawing of either the racetrack or rewards. False disables the drawing module
@@ -13,6 +15,8 @@
 
 
 gamesettings = {
+    'screensize': (800, 600),                   
+    'grid_dims':  (6, 8),                       
     'human_ai_toggle': 'AI',                 # {'AI', 'HUMAN'}
     'train_infer_toggle': 'TRAIN',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
     'draw_toggle': False,                       # {'True', 'False'}

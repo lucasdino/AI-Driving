@@ -25,16 +25,15 @@ class DQN_Model:
     # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Left, Right, Down, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
     BATCH_SIZE = 512
-    GAMMA = 0.995
+    GAMMA = 0.95
     EPS_START = 0.9
     EPS_END = 0.2
-    EPS_DECAY = 10000
-    PRETRAIN_STEPS = 0
-    TAU = 1e-4
-    LR = 1e-6
+    EPS_DECAY = 100000
+    TAU = 3e-4
+    LR = 1e-5
     N_ACTIONS = 5
-    N_OBSERVATIONS = 17
-    MEMORY_FRAMES = 5000
+    N_OBSERVATIONS = 15
+    MEMORY_FRAMES = 10000
     last_action = None
     episode_final_reward = []
 
@@ -43,7 +42,7 @@ class DQN_Model:
     SAVE_WEIGHTS_FROM_GAME = False
     LOSS_CALC_INDEX = 0
 
-    IMPORT_WEIGHTS_FOR_TRAINING = True
+    IMPORT_WEIGHTS_FOR_TRAINING = False
 
 
     def __init__(self, gamesettings):
@@ -54,6 +53,7 @@ class DQN_Model:
         self.racegame_session = None
         self.racegame_episodes = 0
         self.coins_since_last_print_window = 0
+        self.time_at_last_measure = 0
         
         # Leverage GPU if exists, otherwise use CPU
         self.device, self.max_episodes = instantiate_hardware()
@@ -67,8 +67,8 @@ class DQN_Model:
             self.target_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
             
             if self.IMPORT_WEIGHTS_FOR_TRAINING:
-                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-09.26.23-19.38'))
-                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-09.26.23-19.38'))
+                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.06.23-00.39'))
+                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.06.23-00.39'))
                 self.EPS_DECAY = 100
             else:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -119,35 +119,34 @@ class DQN_Model:
                 action_tensor = self.policy_net(state).max(1)[1]
                 return convert_action_tensor_to_list(action_tensor, self.N_ACTIONS)
         else:
-            if self.steps_done < self.PRETRAIN_STEPS:
-                return early_training_random_action(self.N_ACTIONS, self.last_action, self.steps_done, self.PRETRAIN_STEPS)
-            else:
-                return random_action_motion(self.N_ACTIONS, self.last_action)
+            return random_action_motion(self.N_ACTIONS, self.last_action)
         
 
     def print_progress(self):
         """Function to print training progress to the console every 'print_freq' episodes"""
         print_freq = 10
-        rolling_average = 1000
         
         loss_catalog = torch.tensor(self.loss_calculations, dtype=torch.float)
 
         if (self.racegame_episodes % print_freq == 0) or (self.racegame_episodes == self.max_episodes-1):
-            if len(loss_catalog) >= rolling_average:
-                avg_loss = loss_catalog[self.LOSS_CALC_INDEX:].mean().item()
-            else:
-                avg_loss = loss_catalog.mean().item()
-
+            # Supporting calcs for print statement
+            avg_loss = loss_catalog[self.LOSS_CALC_INDEX:].mean().item()
             avg_score_over_print_window = round(sum(self.episode_final_reward[-print_freq:])/print_freq, 0)
-
-            print(f"Episode {self.racegame_episodes}/{self.max_episodes} - Avg Loss: {avg_loss:.2f} ({self.LOSS_CALC_INDEX}-{len(loss_catalog)}) - Coins Since Last Print: {self.coins_since_last_print_window} - Avg End Score: {avg_score_over_print_window}")
+            cur_time = self.racegame_session.racegame.get_time()
+            fps = round((len(loss_catalog) - self.LOSS_CALC_INDEX) / ((cur_time - self.time_at_last_measure)/1000), 0)
+            
+            # Print statement 
+            print(f"Ep: {self.racegame_episodes}/{self.max_episodes}; Avg Loss: {avg_loss:.2f} ({self.LOSS_CALC_INDEX}-{len(loss_catalog)}); Ep. Coins: {self.coins_since_last_print_window}; Avg End Score: {avg_score_over_print_window}; FPS: {fps}")
+            
+            # Reset metavars
+            self.time_at_last_measure = cur_time
             self.coins_since_last_print_window = 0
             self.LOSS_CALC_INDEX = len(loss_catalog)
 
 
     def optimize_model(self):
-        if len(self.memory) < self.BATCH_SIZE:
-            return
+        if len(self.memory) < self.BATCH_SIZE: return
+        if len(self.memory) == self.BATCH_SIZE: self.time_at_last_measure = self.racegame_session.racegame.get_time()
         transitions = self.memory.sample(self.BATCH_SIZE)
         batch = Transition(*zip(*transitions))
 
@@ -157,7 +156,7 @@ class DQN_Model:
                                             batch.next_state)), device=self.device, dtype=torch.bool)
         non_final_next_states = torch.cat([s for s in batch.next_state
                                                     if s is not None])
-        state_batch = torch.cat(batch.state)        # Outputs a tensor of dim 17 x 128 (i.e., STATE x BATCH)
+        state_batch = torch.cat(batch.state)        # Outputs a tensor of dim 15 x 128 (i.e., STATE x BATCH)
         action_batch = torch.cat(batch.action)      # Outputs a tensor of dim 5 x 128 (i.e., ACTION x BATCH)
         reward_batch = torch.cat(batch.reward)      # Outputs a tensor of dim 128
 
@@ -209,16 +208,18 @@ class DQN_Model:
                 reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
                 done = crashed or laps_finished or time_limit
 
-                if crashed:
-                    next_state = None
-                else:
-                    next_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
 
                 # Store the transition in memory
+                next_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
                 t_action = torch.tensor(action, dtype=torch.float32, device=self.device).unsqueeze(0)
                 t_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
                 self.memory.push(t_state, t_action, next_state, reward)
 
+                # Need to then push a 'None' next_state so that we can set up 'final next states'
+                if crashed:
+                    next_state = None
+                    self.memory.push(t_state, t_action, next_state, reward)
+                    
                 # Move to the next state
                 state = next_state
 
