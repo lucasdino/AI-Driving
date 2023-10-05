@@ -46,12 +46,9 @@ def nearest_line_distance(center, angle, racetrack_line):
     intersection = line_intersection(line, racetrack_line)
 
     # If the intersection point is not None, calculate the distance from the center point to the intersection point
-    if intersection is not None:
-        return np.hypot(*np.subtract(center, intersection))
-
-    # If the intersection point is None, return an arbitrarily large number to prevent future busts
-    else:
-        return 1000
+    # If the intersection point is None, return 200 as that is the extent of our distance we see given the grid system
+    if intersection is not None: return np.hypot(*np.subtract(center, intersection))
+    else: return 200
 
 
 def keypress_to_action(keys, ai_running=False):
@@ -140,25 +137,11 @@ def manual_override_check(key, click_eligible, manual_override):
     return manual_override, click_eligible
 
 
-def scale_list(list, clipped_dist):
-    """Function that takes in a list, a length that we'll remove (adjustment) from the distance to account for the hitbox, and a max 'clipped' distance to remove impact of large outliers"""
-    adj_list = [min(max(x, 0.1), clipped_dist) for x in list]
-    max_val = max(adj_list)
-    scaled_list = [i/max_val for i in adj_list]
-
-    return scaled_list
-
-
-def normal_dist(input, mean, std_dev):
-    """Func that takes an input and returns the same input but scaled to mean=0 and std_dev = 1 based on empirical observations"""
-    if isinstance(input, list):
-        for i in range(len(input)):
-            input[i] = (input[i] - mean)/std_dev
-    else:
-        input = (input - mean)/std_dev
-
-    return input
-
+def standardize_data(data):
+    """Func that takes an input and returns the same input but scaled to mean=0 and std_dev = 1"""
+    adj_list = (data - np.mean(data)) / np.std(data)
+    return adj_list.tolist()
+    
 
 def get_neighbor_lines(session_assets, grid_dims, racecar_center):
     """"Function to return the lines from the neighboring gridboxes to enable more efficient mid-game compute"""

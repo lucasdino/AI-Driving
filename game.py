@@ -121,7 +121,7 @@ class RaceGame:
         action_to_motion(self.racecar, self.frame_action, self._ACCELERATION, self._TURNSPEED)
         self.racecar.apply_drag(self._DRAG)
         self._update_racecar_state(self.frame_action)
-        # self.racecar.return_clean_model_state()
+        self.racecar.return_clean_model_state()
 
 
     def _handle_ai_input(self, training_action=None):

@@ -203,33 +203,32 @@ class Racecar:
     def return_clean_model_state(self):
         """Function to convert the 'model inputs' dictionary into a 1-D array"""
         flat_clean_list = []
-        for key, value in self.modelinputs.items():
+        for label, state in self.modelinputs.items():
             include = True
 
             # Start by cleaning the data so we pass through data in roughly the same scale    
-            if "vision_distances" in key:
-                clipped_distance = 200
-                value = scale_list(value, clipped_distance)
-            elif "rel_angle_to_reward" in key:
-                value = 0.5 - abs(value)
-            elif "distance_to_reward" in key:
-                dist_less_radius = max(value-self.session_assets["CoinRadius"], 1)
-                value = dist_less_radius/40
-            elif "velocity_to_reward" in key:
+            if "vision_distances" in label:
+                state = standardize_data(state)
+            elif "rel_angle_to_reward" in label:
+                state = 0.5 - abs(state)
+            elif "distance_to_reward" in label:
+                dist_less_radius = max(state-self.session_assets["CoinRadius"], 1)
+                state = dist_less_radius/40
+            elif "velocity_to_reward" in label:
                 include = False
-            elif "racecar_velocity" in key:
+            elif "racecar_velocity" in label:
                 pass
-            elif "last_action_index" in key:
+            elif "last_action_index" in label:
                 new_list = [0] * 5
-                new_list[value] = 1
-                value = new_list
+                new_list[state] = 1
+                state = new_list
 
             if include:
                 # Next, append the value to a list that we pass back to the neural network
-                flat_clean_list.extend(value) if isinstance(value, list) else flat_clean_list.append(value)
+                flat_clean_list.extend(state) if isinstance(state, list) else flat_clean_list.append(state)
         
-        # rounded_list = [round(x, 2) for x in flat_clean_list]
-        # print(f"{rounded_list[8:]}")
+        rounded_list = [round(x, 2) for x in flat_clean_list]
+        print(f"{rounded_list[6:]}")
         
         return flat_clean_list
 
