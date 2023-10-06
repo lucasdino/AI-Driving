@@ -27,7 +27,7 @@ class DQN_Model:
     EPS_END = 0.1
     EPS_DECAY = 100000
     TAU = 3e-3
-    LR = 3e-5
+    LR = 1e-4
     N_OUTPUT_SIZE = 5
     M_STATE_SIZE = 15
     MEMORY_FRAMES = 10000
@@ -126,7 +126,6 @@ class DQN_Model:
 
     def optimize_model(self):
         if len(self.memory) < self.BATCH_SIZE: return
-        if len(self.memory) == self.BATCH_SIZE: self.time_at_last_print = self.racegame_session.racegame.get_time()
         transitions = self.memory.sample(self.BATCH_SIZE)
         batch = Transition(*zip(*transitions))
 
@@ -157,8 +156,8 @@ class DQN_Model:
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.GAMMA) + reward_batch
 
-        # Compute Huber Loss
-        criterion = nn.HuberLoss()
+        # Compute MSE Loss
+        criterion = nn.MSELoss()
         loss = criterion(state_action_values, expected_state_action_values)
 
         # Append loss calculation for later printout
@@ -168,7 +167,7 @@ class DQN_Model:
         self.optimizer.zero_grad()
         loss.backward()
         # In-place gradient clipping
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 250)
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 75)
         self.optimizer.step()
 
 
@@ -177,31 +176,29 @@ class DQN_Model:
         # Each episode refers to an 'attempt' in the game (i.e., car crashes, finishes # of laps, or is cut off because of time limit)
         for _ in range(self.max_episodes):
             
-            state = self.racegame_session.racegame.racecar.return_clean_model_state()
-            state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+            t_state = self.racegame_session.racegame.racecar.return_clean_model_state()
+            t_state = torch.tensor(t_state, dtype=torch.float32, device=self.device).unsqueeze(0)
         
             for t in count():
                 self.model_toggles = check_toggles(self.model_toggles, self.model_toggle_buttons)
-                action = self.select_action_in_training(state)
-                state, reward, crashed, laps_finished, time_limit = self.racegame_session.racegame.ai_train_step(action, self.model_toggles["Render"])
-                
-                reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
+                t_action = self.select_action_in_training(t_state)
+                self.last_action = t_action
+                t_1_state, t_reward, crashed, laps_finished, time_limit = self.racegame_session.racegame.ai_train_step(t_action, self.model_toggles["Render"])
                 done = crashed or laps_finished or time_limit
-
-
+                
                 # Store the transition in memory
-                next_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
-                t_action = torch.tensor(action, dtype=torch.float32, device=self.device).unsqueeze(0)
-                t_state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
-                self.memory.push(t_state, t_action, next_state, reward)
+                t_action = torch.tensor(t_action, dtype=torch.float32, device=self.device).unsqueeze(0)
+                t_1_state = torch.tensor(t_1_state, dtype=torch.float32, device=self.device).unsqueeze(0)
+                t_reward = torch.tensor([t_reward], dtype=torch.float32, device=self.device)
+                self.memory.push(t_state, t_action, t_1_state, t_reward)
 
                 # Need to then push a 'None' next_state so that we can set up 'final next states'
                 if crashed:
-                    next_state = None
-                    self.memory.push(t_state, t_action, next_state, reward)
+                    t_1_state = None
+                    self.memory.push(t_state, t_action, t_1_state, t_reward)
                     
                 # Move to the next state
-                state = next_state
+                t_state = t_1_state
 
                 # Perform one step of the optimization (on the policy network)
                 self.optimize_model()
@@ -213,8 +210,6 @@ class DQN_Model:
                 for key in policy_net_state_dict:
                     target_net_state_dict[key] = policy_net_state_dict[key]*self.TAU + target_net_state_dict[key]*(1-self.TAU)
                 self.target_net.load_state_dict(target_net_state_dict)
-
-                self.last_action = action
 
                 if self.model_toggles["SaveWeights"]:
                     export_params_and_loss(self.loss_memory, self.policy_net, self.target_net)

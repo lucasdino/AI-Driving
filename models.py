@@ -213,7 +213,7 @@ class Racecar:
                 state = 0.5 - abs(state)
             elif "distance_to_reward" in label:
                 dist_less_radius = max(state-self.session_assets["CoinRadius"], 1)
-                state = min(dist_less_radius/60, 3)
+                state = np.log(min(dist_less_radius/60, 2))
             elif "velocity_to_reward" in label:
                 include = False
             elif "racecar_velocity" in label:

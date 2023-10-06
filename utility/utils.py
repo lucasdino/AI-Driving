@@ -2,7 +2,6 @@ import pygame
 import datetime
 import numpy as np
 import shapely.geometry as geom
-import rtree
 
 
 def get_rotated_rc_lines(center, relative_corners, angle):

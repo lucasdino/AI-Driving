@@ -163,9 +163,10 @@ class RaceGame:
         DistanceToCoin_Penalty = 10
         PixelsToWall_PenaltyThreshold = 10
         ProximityToWall_Multiplier = 2
-        LackOfMotion_Penalty = 1
+        LackOfMotion_Penalty = 2
         NoMotion_Penalty = 3
         BehaviorChange_Penalty = 3
+        BehaviorKeep_Reward = 1
         Crash_Penalty = 2000
 
         # Check for collisions with the walls
@@ -180,9 +181,9 @@ class RaceGame:
         # If car is still alive after the move - reward it if it moves closer to the reward coin or further away
         if self.running and _car_survived_frame:
             # self.rewardchange += FacingCoin_Reward - (abs(self.racecar.modelinputs['rel_angle_to_reward']) * 2 * FacingCoin_Reward)
-            self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 6)
+            self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 10)
             self.reward_change -= min(max(LackOfMotion_Penalty - self.racecar.modelinputs['velocity_to_reward'], 0), LackOfMotion_Penalty)
-            self.reward_change -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
+            self.reward_change += BehaviorKeep_Reward if ((self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) and (self.racecar_previous_action != 4)) else 0
             # self.reward_change -= NoMotion_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
             # self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0,0])+abs(self.racecar.velocity[0,1])), 0)
             # self.reward_change -= max(0, PixelsToWall_PenaltyThreshold-min(self.racecar.modelinputs['vision_distances']))*ProximityToWall_Multiplier
