@@ -1,5 +1,6 @@
 import pygame
-from models import *
+from models import Racecar, Racetrack, RewardCoin
+from game_render import GameBackground
 from utility.utils import *
 from utility.drawing_module import *
 
@@ -26,7 +27,7 @@ class RaceGame:
         self.screen = screen
         
         # Load assets and create objects
-        self.game_background = GameBackground(self.session_assets["GameBackground"])
+        self.game_background = GameBackground(self.session_assets["GameBackground"], self.screen)
         self.racetrack = Racetrack(self.gamesettings['random_coin_start'], self.session_assets["RacetrackLines"], self.session_assets["RewardLocations"])
         self.coinsprite = session_assets["CoinSprite"]
         self.rewardcoin = RewardCoin(self.session_assets, self.racetrack.rewards[self.racetrack.reward_coin_index])
@@ -84,9 +85,8 @@ class RaceGame:
         else: self._handle_ai_input(action)
         
         self._update_game_logic()
-        if render:
-            self._TRAINING_RENDER_TOGGLE = True
-            self._render_game()
+        if render: self._render_game()
+        else: self.game_background.render_off(self.screen, self.model.get_model_toggles())
         
         if self.running == False:
             self.session_metadata['attempts'] += 1
@@ -121,7 +121,7 @@ class RaceGame:
         action_to_motion(self.racecar, self.frame_action, self._ACCELERATION, self._TURNSPEED)
         self.racecar.apply_drag(self._DRAG)
         self._update_racecar_state(self.frame_action)
-        self.racecar.return_clean_model_state()
+        # self.racecar.return_clean_model_state()
 
 
     def _handle_ai_input(self, training_action=None):
@@ -157,16 +157,16 @@ class RaceGame:
 
         # Define reward function variables
         FacingCoin_Reward = 1
-        VelocityToCoin_Reward = 1
+        VelocityToCoin_Reward = 3
         Coin_Reward = 2000
 
         DistanceToCoin_Penalty = 10
         PixelsToWall_PenaltyThreshold = 10
         ProximityToWall_Multiplier = 2
-        LackOfMotion_Multiplier_Penalty = 4
+        LackOfMotion_Penalty = 1
         NoMotion_Penalty = 3
         BehaviorChange_Penalty = 3
-        Crash_Penalty = 4000
+        Crash_Penalty = 2000
 
         # Check for collisions with the walls
         for line in self.racetrack.lines:
@@ -180,12 +180,13 @@ class RaceGame:
         # If car is still alive after the move - reward it if it moves closer to the reward coin or further away
         if self.running and _car_survived_frame:
             # self.rewardchange += FacingCoin_Reward - (abs(self.racecar.modelinputs['rel_angle_to_reward']) * 2 * FacingCoin_Reward)
-            self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 3)
+            self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 6)
+            self.reward_change -= min(max(LackOfMotion_Penalty - self.racecar.modelinputs['velocity_to_reward'], 0), LackOfMotion_Penalty)
             self.reward_change -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
-            self.reward_change -= NoMotion_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
+            # self.reward_change -= NoMotion_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
+            # self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0,0])+abs(self.racecar.velocity[0,1])), 0)
             # self.reward_change -= max(0, PixelsToWall_PenaltyThreshold-min(self.racecar.modelinputs['vision_distances']))*ProximityToWall_Multiplier
             # self.rewardchange -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
-            # self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0,0])+abs(self.racecar.velocity[0,1])), 0)
             # self.rewardchange += BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 1 else 0
             # self.rewardchange -= BehaviorChange_Penalty/2 if (self.racecar.modelinputs['last_action_index'] == 0 or self.racecar.modelinputs['last_action_index'] == 2) else 0
             # self.rewardchange -= BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
@@ -227,22 +228,20 @@ class RaceGame:
 
         # Draw the background and the racecar
         self.game_background.draw_scoreboard(self.screen, elapsed_time, self.cumulative_reward, frame_rate, self.session_metadata)
-        if self.gamesettings['display_arrows']:
-            self.game_background.draw_key_status(self.screen, self.frame_action, True if self.gamesettings['human_ai_toggle'] == "AI" else False)
-        
         self.racecar.draw(self.screen, self.gamesettings['display_hitboxes'])
-
-        if not self.gamesettings['draw_toggle'] or self.gamesettings['racetrack_reward_toggle'] == "REWARD":         
-            self.racetrack.draw(self.screen, self.gamesettings['display_hitboxes'])
         
-        if not self.gamesettings['draw_toggle'] or self.gamesettings['racetrack_reward_toggle'] == "RACETRACK":         
-            self.rewardcoin.draw(self.screen, self.gamesettings['display_hitboxes'])
+        # Draw reward coins and racetrack lines (depending on if toggled / if drawing them), resp.
+        if not self.gamesettings['draw_toggle'] or self.gamesettings['racetrack_reward_toggle'] == "REWARD": self.racetrack.draw(self.screen, self.gamesettings['display_hitboxes'])
+        if not self.gamesettings['draw_toggle'] or self.gamesettings['racetrack_reward_toggle'] == "RACETRACK": self.rewardcoin.draw(self.screen, self.gamesettings['display_hitboxes'])
+        
+        # Draw display arrows (if toggled to show them) and draw the neural net training toggles
+        if self.gamesettings['display_arrows']: self.game_background.draw_key_status(self.screen, self.frame_action, True if self.gamesettings['human_ai_toggle'] == "AI" else False)
+        if ((self.gamesettings['human_ai_toggle'] == "AI") and (self.gamesettings['train_infer_toggle'] == "TRAIN")): self.game_background.draw_model_toggles(self.screen, self.model.get_model_toggles())
 
-        # Draw racetrack lines and rewards if the drawing module is turned on
+
+        # Show the recently drawn racetrack lines and rewards if the drawing module is turned on
         if self.gamesettings['draw_toggle']: 
-            if self.gamesettings['racetrack_reward_toggle'] == "RACETRACK":
-                self.drawing_module.draw_rt_lines(self.screen)
-            else:
-                self.drawing_module.draw_rewards(self.rewardcoin, self.screen)
+            if self.gamesettings['racetrack_reward_toggle'] == "RACETRACK": self.drawing_module.draw_rt_lines(self.screen)
+            else: self.drawing_module.draw_rewards(self.rewardcoin, self.screen)
 
         pygame.display.flip()

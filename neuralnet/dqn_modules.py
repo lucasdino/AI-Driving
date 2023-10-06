@@ -2,13 +2,10 @@ import random
 import os
 import csv
 import datetime
-import pygame
-import numpy as np
 from collections import namedtuple, deque
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
 
 Transition = namedtuple('Transition',
@@ -81,126 +78,3 @@ class DQN(nn.Module):
             print("Model parameters exported successfully.")
         except:
             print("Model parameters failed to export.")
-    
-
-def instantiate_hardware():
-    """Function to load CUDA if GPU is available; otherwise use CPU""" 
-    hardware = "tbu"
-    num_episodes = 0
-    if torch.cuda.is_available():
-        hardware = "cuda"
-        num_episodes = 5000
-    else:
-        hardware = "cpu"
-        num_episodes = 100
-
-    print(f"Utilizing {hardware} for neural net hardware.")
-    return torch.device(hardware), num_episodes
- 
-
-def random_action_motion(action_space_size, last_action):
-    """Function provides random motion to car"""
-    rand = np.random.random()
-    action_list = [0]*action_space_size
-    action_index = 0
-
-    if last_action == None:        
-        action_index = np.random.randint(action_space_size-2)
-    else:
-        prev_action_index = last_action.index(1)
-
-        # Bias toward having car do the same action as before. Prevents super wobbly behavior. Otherwise add 1 / subtract 1 (min/max to prevent OOB)
-        if rand < 0.4:
-            action_index = prev_action_index
-        elif rand < 0.7:
-            action_index = max(prev_action_index-1, 0)
-        else:
-            action_index = min(prev_action_index+1, action_space_size-1)
-        
-    action_list[action_index] = 1
-    return action_list
-    
-
-def early_training_random_action(action_space_size, last_action, steps_done, pretrain_steps):
-    """Function provides random motion to car, biased toward going straight so that early training is seeded with information about motion / reward function"""
-    rand = random.random()
-    action_list = [0]*action_space_size
-    action_index = 0
-
-    # Update biased_action so that each potential action is shown to the model multiple times in early training
-    biased_action = np.floor((steps_done/pretrain_steps)*action_space_size)
-    # biased_action = 1
-
-    # Similar logic as other random_action function, except this one will more heavily bias going forward
-    if last_action == None:
-        action_index = biased_action
-    else:
-        prev_action_index = last_action.index(1)
-
-        if rand < 0.8:
-            action_index = biased_action
-        elif rand < 0.9:
-            action_index = max(prev_action_index-1, 0)
-        else:
-            action_index = min(prev_action_index+1, action_space_size-1)
-            
-    action_list[action_index] = 1
-    return action_list
-    
-
-def convert_action_tensor_to_list(action_tensor, action_space_size):
-    """Model that takes in an action tensor and returns a list that can be interpreted by the game"""
-    inferred_action = [0] * action_space_size
-    inferred_action[action_tensor.item()] = 1
-    return inferred_action
-
-
-def save_loss_to_csv(loss_calculations, filename):
-    """Saves the loss to a CSV file."""
-    with open(f'assets/loss_results/{filename}.csv', "w", newline="") as csvfile:
-        csv_writer = csv.writer(csvfile)
-        for loss in loss_calculations:
-            csv_writer.writerow([loss])
-
-
-# Defining variables externally that don't need to be recreated each time
-toggle_render_button_rect = pygame.Rect(10, 10, 80, 20)
-save_weights_button_rect = pygame.Rect(10, 40, 80, 20)
-
-RED = (255, 0, 0)
-PURPLE = (0, 255, 255)
-
-def render_toggle(screen, render_status, click_eligible = True, toggle_save = False):
-    """Class that lets the AI Training turn on and off rendering to speed up the training process but allow a window to peak in on"""
-
-    font = pygame.font.Font(None, 14)
-    
-    if render_status:
-        color = PURPLE
-    else:
-        color = RED
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-            quit()
-        if ((event.type == pygame.MOUSEBUTTONDOWN) and click_eligible):
-            click_eligible = False
-            if toggle_render_button_rect.collidepoint(event.pos):
-                render_status = not render_status
-            if save_weights_button_rect.collidepoint(event.pos):
-                toggle_save = True
-        if (event.type == pygame.MOUSEBUTTONUP):
-            click_eligible = True
-    
-    render_text = "Render: ON" if render_status else "Render: OFF"
-    render_text_font = font.render(render_text, True, (255, 255, 255))
-    save_text = font.render("Save Weights", True, (255, 255, 255))
-    
-    pygame.draw.rect(screen, color, toggle_render_button_rect)
-    pygame.draw.rect(screen, color, save_weights_button_rect)
-    screen.blit(render_text_font, (12,13))
-    screen.blit(save_text, (12,43))
-
-    pygame.display.flip()
-    return render_status, click_eligible, toggle_save
-    

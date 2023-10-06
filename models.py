@@ -213,7 +213,7 @@ class Racecar:
                 state = 0.5 - abs(state)
             elif "distance_to_reward" in label:
                 dist_less_radius = max(state-self.session_assets["CoinRadius"], 1)
-                state = dist_less_radius/40
+                state = min(dist_less_radius/60, 3)
             elif "velocity_to_reward" in label:
                 include = False
             elif "racecar_velocity" in label:
@@ -227,8 +227,8 @@ class Racecar:
                 # Next, append the value to a list that we pass back to the neural network
                 flat_clean_list.extend(state) if isinstance(state, list) else flat_clean_list.append(state)
         
-        rounded_list = [round(x, 2) for x in flat_clean_list]
-        print(f"{rounded_list[6:]}")
+        # rounded_list = [round(x, 2) for x in flat_clean_list]
+        # print(f"{rounded_list[6:]}")
         
         return flat_clean_list
 
@@ -282,103 +282,3 @@ class RewardCoin:
     def intersect_with_reward(self, distance_to_center):
         """Check if a given point intersects with the sprite rectangle"""
         return distance_to_center <= self.radius
-
-
-class GameBackground:
-    """Class containing all assets of the game background"""
-    def __init__(self, racetrack_background):
-        self.racetrack_background = racetrack_background
-        self.font = pygame.font.Font(None, 20)              # Font for displaying text
-        self._create_scoreboard_bg() 
-    
-
-    def _create_scoreboard_bg(self):
-        """Create semi-transparent background for scoreboard"""
-        self.scoreboard_bg = pygame.Surface((200, 60))
-        self.scoreboard_bg.fill((0, 0, 0))
-        self.scoreboard_bg.set_alpha(150)
-
-
-    def draw_scoreboard(self, screen, time, score, frame_rate, session_metadata):
-        """Render background and scoreboard"""
-        screen.blit(self.racetrack_background, (0,0))
-        
-        temp_scoreboard = self.scoreboard_bg.copy()
-        score_time_text = self.font.render(f"Time: {time}s        Score: {score:.0f}", True, (255, 255, 255))
-        attempt_wins_text = self.font.render(f"Attempt: {session_metadata['attempts']}     Wins: {session_metadata['wins']}", True, (255, 255, 255))
-        FPS_attempt_text = self.font.render(f"FPS: {frame_rate}     Attempt: {session_metadata['attempts']}", True, (255, 255, 255))
-        
-        temp_scoreboard.blit(score_time_text, (10, 10))
-        temp_scoreboard.blit(FPS_attempt_text, (10, 35))
-        screen.blit(temp_scoreboard, (screen.get_width() - 210, 10))
-
-
-    def draw_key_status(self, screen, keypress, ai_running=False):
-        """Draw the keypad, lighting up when each associated key is pressed"""
-        # Define colors
-        GRAY = (128, 128, 128)
-        RED = (255, 0, 0)
-        BLACK = (0, 0, 0)
-        width = screen.get_width()
-        height = screen.get_height()
-        offset = 10                         # Offset from bottom and right side of the walls
-        converted_keypress = [0] * 4   # Need four binaries to convey which keys should be lit up red (because of being pressed)
-
-        # Define key positions and sizes
-        key_size = (50, 50)
-        key_positions = {
-            'Up': (width - key_size[0] * 2 - offset * 2, height - key_size[1] * 2 - offset * 2),  # Up is on top
-            'Down': (width - key_size[0] * 2 - offset * 2, height - key_size[1] - offset),  # Down is below Up
-            'Left': (width - key_size[0] * 3 - offset * 3, height - key_size[1] - offset),  # Left is to the left of Down
-            'Right': (width - key_size[0] * 1 - offset, height - key_size[1] - offset),  # Right is to the right of Down
-        }
-
-        # Define arrow shapes, centered within the keys
-        arrows = {
-            'Up': [(25, 15), (15, 35), (35, 35)],  # Arrow pointing up
-            'Down': [(25, 35), (15, 15), (35, 15)],  # Arrow pointing down
-            'Left': [(15, 25), (35, 15), (35, 35)],  # Arrow pointing left
-            'Right': [(35, 25), (15, 15), (15, 35)]  # Arrow pointing right
-        }
-
-        # Define background rectangle
-        bg_rect = pygame.Rect(width - key_size[0] * 3 - offset*4, height - key_size[1] * 2 - offset*3, key_size[0] * 3 + offset*4, key_size[1] * 2 + offset*3)
-
-        # Draw semi-transparent background
-        s = pygame.Surface((bg_rect.width, bg_rect.height))  # The size of your rect
-        s.set_alpha(150)  # Alpha level
-        s.fill(BLACK)  # This fills the entire surface
-        screen.blit(s, (bg_rect.x, bg_rect.y))  # (0,0) are the top-left coordinates
-
-        # Create temporary binary array for keys to pass through which should be highlighted red vs. grey
-        if ai_running:
-            for i, _ in enumerate(['Left', 'Up', 'Right', 'Down']):
-                if keypress[i] == 1:
-                    converted_keypress[i] = 1
-        
-        # Have different loop for if human is playing since more keys
-        else:
-            for i, _ in enumerate(['Left', 'Up', 'Right', 'Down', 'Do_Nothing', 'Up_Left', 'Up_Right', 'Down_Left', 'Down_Right']):
-                if keypress[i] == 1 and i < 4:
-                    converted_keypress[i] = 1
-                elif keypress[i] == 1 and i == 5:           # Up_Left
-                    converted_keypress = [1,1,0,0]
-                elif keypress[i] == 1 and i == 6:           # Up_Right
-                    converted_keypress = [0,1,1,0]
-                elif keypress[i] == 1 and i == 7:           # Down_Left
-                    converted_keypress = [1,0,0,1]
-                elif keypress[i] == 1 and i == 8:           # Down_Right
-                    converted_keypress = [0,0,1,1]
-
-
-        # Draw keys and arrows
-        for i, key in enumerate(['Left', 'Up', 'Right', 'Down']):
-            color = RED if converted_keypress[i] else GRAY  # i+1 because keypress[0] is for 'None'
-            
-            # Draw key with black border
-            pygame.draw.rect(screen, BLACK, (*key_positions[key], *key_size), 2)  # Border
-            pygame.draw.rect(screen, color, (key_positions[key][0] + 2, key_positions[key][1] + 2, key_size[0] - 4, key_size[1] - 4))  # Key
-
-            # Draw arrows on keys
-            arrow = [(pos[0] + key_positions[key][0], pos[1] + key_positions[key][1]) for pos in arrows[key]]
-            pygame.draw.polygon(screen, BLACK, arrow)

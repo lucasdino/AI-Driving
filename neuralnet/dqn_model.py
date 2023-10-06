@@ -1,49 +1,45 @@
-# Direction from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
-import datetime
-import numpy as np
-from itertools import count
-from .dqn_modules import *
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 
+import numpy as np
+from itertools import count
+from .dqn_modules import ReplayMemory, DQN, Transition
+from .dqn_utilities import *
 
 
 class DQN_Model:
     """Class encompassing neural network, including training and inference functions"""
 
-    # BATCH_SIZE is the number of transitions sampled from the replay buffer
-    # GAMMA is the discount factor as mentioned in the previous section
+    # BATCH_SIZE is the number of transitions sampled from the replay buffer. Given sparsity of events (coins, crashes, etc.) opting for smaller nn w/ a large memory / batch_size
+    # GAMMA is the discount factor. Choosing large discount factor since life is relatively long (many steps typically >500)
     # EPS_START is the starting value of epsilon
-    # EPS_END is the final value of epsilon
+    # EPS_END is the final value of epsilon. Keeping large toward end to promote level of random behavior
     # EPS_DECAY lets you add a number of steps of semi-random motion before you start amortizing semi-randomization with EPS_DECAY
-    # EPS_DELAY lets you manually set the number of steps at the start that can run on a different policy (i.e., heavily biases going forward). This should help the model learn the correct behavior
-    # TAU is the update rate of the target network
-    # LR is the learning rate of the ``AdamW`` optimizer
+    # TAU is the update rate of the target network. To be tuned
+    # LR is the learning rate of the ``AdamW`` optimizer. To be tuned
     # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Left, Right, Down, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
+    
     BATCH_SIZE = 512
-    GAMMA = 0.95
+    GAMMA = 0.99
     EPS_START = 0.9
-    EPS_END = 0.2
+    EPS_END = 0.1
     EPS_DECAY = 100000
-    TAU = 3e-4
-    LR = 1e-5
-    N_ACTIONS = 5
-    N_OBSERVATIONS = 15
+    TAU = 3e-3
+    LR = 3e-5
+    N_OUTPUT_SIZE = 5
+    M_STATE_SIZE = 15
     MEMORY_FRAMES = 10000
-    last_action = None
-    episode_final_reward = []
-
-    RENDER = True
-    RENDER_CLICK = True
-    SAVE_WEIGHTS_FROM_GAME = False
-    LOSS_CALC_INDEX = 0
-
+    MAX_CUDA_EPISODES = 10000
     IMPORT_WEIGHTS_FOR_TRAINING = False
 
+    # Setting a dictionary to pass back and forth to store information about user toggling different model actions
+    model_toggles = {
+        "ClickEligible": True,
+        "Render": True,
+        "SaveWeights": False
+    }
 
     def __init__(self, gamesettings):
         """Instantaite class of DQN Model"""
@@ -51,102 +47,86 @@ class DQN_Model:
         # Create reference to racegame that will be passed through each time a new instance of racegame is created 
         self.gamesettings = gamesettings
         self.racegame_session = None
-        self.racegame_episodes = 0
-        self.coins_since_last_print_window = 0
-        self.time_at_last_measure = 0
-        
+        self.last_action = None
+
         # Leverage GPU if exists, otherwise use CPU
-        self.device, self.max_episodes = instantiate_hardware()
+        self.device, self.max_episodes = instantiate_hardware(self.MAX_CUDA_EPISODES)
 
         # Create neural nets of input size of N_Observations and output size of N_actions. Load to GPU if GPU is available
-        self.policy_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
+        self.policy_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
         
-        # If we want to be training our model, we need to set up different variables as well as instantiating an optimizer and a Memory object
-        if self.gamesettings['train_infer_toggle'] == 'TRAIN':
-            
-            self.target_net = DQN(self.N_OBSERVATIONS, self.N_ACTIONS).to(self.device)
+        # If not training the model, can simply load existing parameters for run
+        if self.gamesettings['train_infer_toggle'] == 'INFER': self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-09.26.23-19.38'))
+        
+        # If we want to be training our model, we need to create memory object, target_net, and other necessary var
+        if self.gamesettings['train_infer_toggle'] == 'TRAIN': 
+            self.target_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
             
             if self.IMPORT_WEIGHTS_FOR_TRAINING:
                 self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.06.23-00.39'))
                 self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.06.23-00.39'))
-                self.EPS_DECAY = 100
+                self.EPS_DECAY = self.EPS_DECAY / 10            # Reduce amount of random steps at beginning
             else:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
 
-            # Create vars to track training steps / list to show loss in real-time
-            # One episode relates to one attempt in the 'Game Instance' (i.e., you finish # of laps or you crash)
+            # Create vars to track and print progress during training
+            self.progress_vars = {
+                "Episodes": 0,
+                "CoinsSinceLastPrint": 0,
+                "TimeAtLastPrint": 0,
+                "IndexOfLastPrint": 0, 
+                "PrintFrequency": 10,
+                "EpisodeTotalReward": []
+            }
+            
+            # Vars to track steps done (for EPS decay) and save loss_calculations for each step
             self.steps_done = 0
-            self.loss_calculations = []
+            self.loss_memory = []
 
             # Create instance of optimizer and replay memory object
             self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
             self.memory = ReplayMemory(self.MEMORY_FRAMES)
-            
-        # If not training the model, can simply load existing parameters for run
-        elif self.gamesettings['train_infer_toggle'] == 'INFER':
-            self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-09.26.23-19.38'))
-
-        else:
-            print("***ALERT*** Please ensure 'TRAIN_INFER_TOGGLE' is set to either 'TRAIN' or 'INFER'")
 
 
     def racegame_session_setter(self, racegame_session):
         """Simple setter function to pass through a racegame each time a new racegame instance is created"""
         self.racegame_session = racegame_session
+        self.model_toggle_buttons = racegame_session.racegame.game_background.get_model_toggle_buttons()
 
+    
+    def get_model_toggles(self):
+        """Simple getter to return the model toggles for use in screen printing"""
+        return self.model_toggles
+    
 
     def run_model_inference(self, state):
         """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
         # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)\
-        sample = np.random.random()
-        if sample > self.EPS_END:
+        if np.random.random() < self.EPS_END: return random_action_motion(self.N_OUTPUT_SIZE, self.last_action)
+        else:
             with torch.no_grad():
                 state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
                 action_tensor = self.policy_net(state).max(1)[1]
-            return convert_action_tensor_to_list(action_tensor, self.N_ACTIONS)
-        else: 
-            return random_action_motion(self.N_ACTIONS, self.last_action)
-
+            return convert_action_tensor_to_list(action_tensor, self.N_OUTPUT_SIZE) 
+            
 
     def select_action_in_training(self, state):
         """Pass through environment state and return action (i.e., driving motion)"""
-        sample = np.random.random()
+        # Compute new EPS threshold and update steps done
         eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * \
             np.exp(-1. * self.steps_done / self.EPS_DECAY)
         self.steps_done += 1
-        if sample > eps_threshold:
+        
+        if np.random.random() < eps_threshold: return random_action_motion(self.N_OUTPUT_SIZE, self.last_action)
+        else:
             with torch.no_grad():
                 action_tensor = self.policy_net(state).max(1)[1]
-                return convert_action_tensor_to_list(action_tensor, self.N_ACTIONS)
-        else:
-            return random_action_motion(self.N_ACTIONS, self.last_action)
-        
-
-    def print_progress(self):
-        """Function to print training progress to the console every 'print_freq' episodes"""
-        print_freq = 10
-        
-        loss_catalog = torch.tensor(self.loss_calculations, dtype=torch.float)
-
-        if (self.racegame_episodes % print_freq == 0) or (self.racegame_episodes == self.max_episodes-1):
-            # Supporting calcs for print statement
-            avg_loss = loss_catalog[self.LOSS_CALC_INDEX:].mean().item()
-            avg_score_over_print_window = round(sum(self.episode_final_reward[-print_freq:])/print_freq, 0)
-            cur_time = self.racegame_session.racegame.get_time()
-            fps = round((len(loss_catalog) - self.LOSS_CALC_INDEX) / ((cur_time - self.time_at_last_measure)/1000), 0)
-            
-            # Print statement 
-            print(f"Ep: {self.racegame_episodes}/{self.max_episodes}; Avg Loss: {avg_loss:.2f} ({self.LOSS_CALC_INDEX}-{len(loss_catalog)}); Ep. Coins: {self.coins_since_last_print_window}; Avg End Score: {avg_score_over_print_window}; FPS: {fps}")
-            
-            # Reset metavars
-            self.time_at_last_measure = cur_time
-            self.coins_since_last_print_window = 0
-            self.LOSS_CALC_INDEX = len(loss_catalog)
+                return convert_action_tensor_to_list(action_tensor, self.N_OUTPUT_SIZE)
 
 
     def optimize_model(self):
         if len(self.memory) < self.BATCH_SIZE: return
-        if len(self.memory) == self.BATCH_SIZE: self.time_at_last_measure = self.racegame_session.racegame.get_time()
+        if len(self.memory) == self.BATCH_SIZE: self.time_at_last_print = self.racegame_session.racegame.get_time()
         transitions = self.memory.sample(self.BATCH_SIZE)
         batch = Transition(*zip(*transitions))
 
@@ -182,7 +162,7 @@ class DQN_Model:
         loss = criterion(state_action_values, expected_state_action_values)
 
         # Append loss calculation for later printout
-        self.loss_calculations.append(loss.item())
+        self.loss_memory.append(loss.item())
 
         # Optimize the model
         self.optimizer.zero_grad()
@@ -201,9 +181,9 @@ class DQN_Model:
             state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         
             for t in count():
-                self.RENDER, self.RENDER_CLICK, self.SAVE_WEIGHTS_FROM_GAME = render_toggle(self.racegame_session.racegame.screen, self.RENDER, self.RENDER_CLICK)
+                self.model_toggles = check_toggles(self.model_toggles, self.model_toggle_buttons)
                 action = self.select_action_in_training(state)
-                state, reward, crashed, laps_finished, time_limit = self.racegame_session.racegame.ai_train_step(action, self.RENDER)
+                state, reward, crashed, laps_finished, time_limit = self.racegame_session.racegame.ai_train_step(action, self.model_toggles["Render"])
                 
                 reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
                 done = crashed or laps_finished or time_limit
@@ -236,27 +216,19 @@ class DQN_Model:
 
                 self.last_action = action
 
-                if self.SAVE_WEIGHTS_FROM_GAME:
-                    self.export_params_and_loss()
-                    self.memory.save_replay_memory(self.N_OBSERVATIONS)
-                    self.SAVE_WEIGHTS_FROM_GAME = False
+                if self.model_toggles["SaveWeights"]:
+                    export_params_and_loss(self.loss_memory, self.policy_net, self.target_net)
+                    self.memory.save_replay_memory(self.M_STATE_SIZE)
+                    self.model_toggles["SaveWeights"] = False
                 
                 if done:
-                    self.coins_since_last_print_window += self.racegame_session.racegame.coins
-                    self.episode_final_reward.append(self.racegame_session.racegame.cumulative_reward)
+                    self.progress_vars["CoinsSinceLastPrint"] += self.racegame_session.racegame.coins
+                    self.progress_vars["EpisodeTotalReward"].append(self.racegame_session.racegame.cumulative_reward)
                     self.racegame_session.reset_racegame()
-                    self.racegame_episodes = self.racegame_session.session_metadata['attempts']
-                    self.print_progress()
+                    self.progress_vars["Episodes"] = self.racegame_session.session_metadata['attempts']
+                    print_progress(self.progress_vars, self.loss_memory, self.max_episodes, self.racegame_session.racegame.get_time())
                     self.last_action = None
                     break
         
         # When done, export parameters and loss data
-        self.export_params_and_loss()
-
-
-    def export_params_and_loss(self):
-        """Function to export neural net weights and loss"""
-        formatted_datetime = datetime.datetime.now().strftime("%m.%d.%y-%H.%M")
-        save_loss_to_csv(self.loss_calculations, "Loss_Calculations-" + formatted_datetime)
-        self.policy_net.export_parameters("Policy_Net_Params-" + formatted_datetime)
-        self.target_net.export_parameters("Target_Net_Params-" + formatted_datetime)
+        export_params_and_loss(self.loss_memory, self.policy_net, self.target_net)
