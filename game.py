@@ -70,7 +70,7 @@ class RaceGame:
         self._handle_ai_input()
         self._update_game_logic()
         self._render_game()
-        self.clock.tick(40)
+        self.clock.tick()
 
         if self.running == False:
             self.session_metadata['attempts'] += 1
@@ -85,7 +85,9 @@ class RaceGame:
         else: self._handle_ai_input(action)
         
         self._update_game_logic()
-        if render: self._render_game()
+        if render: 
+            self._render_game()
+            self.clock.tick()
         else: self.game_background.render_off(self.screen, self.model.get_model_toggles())
         
         if self.running == False:

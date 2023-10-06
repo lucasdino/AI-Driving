@@ -32,7 +32,7 @@ class DQN_Model:
     M_STATE_SIZE = 15
     MEMORY_FRAMES = 10000
     MAX_CUDA_EPISODES = 10000
-    IMPORT_WEIGHTS_FOR_TRAINING = False
+    IMPORT_WEIGHTS_FOR_TRAINING = True
 
     # Setting a dictionary to pass back and forth to store information about user toggling different model actions
     model_toggles = {
@@ -63,8 +63,8 @@ class DQN_Model:
             self.target_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
             
             if self.IMPORT_WEIGHTS_FOR_TRAINING:
-                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.06.23-00.39'))
-                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.06.23-00.39'))
+                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.06.23-23.33'))
+                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.06.23-23.33'))
                 self.EPS_DECAY = self.EPS_DECAY / 10            # Reduce amount of random steps at beginning
             else:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
