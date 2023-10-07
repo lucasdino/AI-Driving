@@ -19,4 +19,7 @@ Learned a lot and got satisfactory results. Few highlights:
 ---
 
 Few Gifs!
-
+![Trained model running on the original track](https://github.com/lucasdino/AI-Driving/blob/main/gifs/OriginalTrainingTrack.gif)
+![Trained model running on unseen, similar but slightly more difficult track](https://github.com/lucasdino/AI-Driving/blob/main/gifs/HardCartoonTrack.gif)
+![Trained model running on harder Google Maps track](https://github.com/lucasdino/AI-Driving/blob/main/gifs/GoogleMapsTrack.gif)
+![Trained model not doing so hot on DALLE Generated difficult track](https://github.com/lucasdino/AI-Driving/blob/main/gifs/DALLEUnderwaterTrack.gif)
