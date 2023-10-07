@@ -210,7 +210,7 @@ class Racecar:
             if "vision_distances" in label:
                 state = standardize_data(state)
             elif "rel_angle_to_reward" in label:
-                state = 0.5 - abs(state)
+                pass
             elif "distance_to_reward" in label:
                 dist_less_radius = max(state-self.session_assets["CoinRadius"], 1)
                 state = np.log(min(dist_less_radius/60, 2))

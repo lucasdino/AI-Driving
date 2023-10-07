@@ -87,8 +87,10 @@ class RaceGame:
         self._update_game_logic()
         if render: 
             self._render_game()
-            self.clock.tick()
+            if self.session_metadata['manual_override']: self.clock.tick(40)
+            else: self.clock.tick()
         else: self.game_background.render_off(self.screen, self.model.get_model_toggles())
+        self.gamesettings["display_hitboxes"] = self.model.get_model_toggles()["ShowHitboxes"]
         
         if self.running == False:
             self.session_metadata['attempts'] += 1
@@ -166,7 +168,8 @@ class RaceGame:
         BehaviorKeep_Reward = 1
 
         # Check for collisions with the walls
-        for line in self.racetrack.lines:
+        neighboring_lines = get_neighbor_lines(self.session_assets, self.gamesettings["grid_dims"], (self.racecar.position[0,0], self.racecar.position[0,1]))
+        for line in neighboring_lines:
             if self.racecar.check_line_collision(line): 
                 self.running = False
                 _car_survived_frame = False

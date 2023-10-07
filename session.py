@@ -25,6 +25,7 @@ class Racegame_Session:
     def reset_racegame(self):
         """Method to reset the Racegame; before resetting, ensure attempts and wins is correctly updated"""
         self.session_metadata = self.racegame.session_metadata
+        self.gamesettings = self.racegame.gamesettings
         self.create_racegame()
         
     def model_setter(self, nn_model):

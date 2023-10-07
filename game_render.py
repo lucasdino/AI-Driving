@@ -17,15 +17,17 @@ class GameBackground:
     
     # Define reused objects / etc.
     model_toggle_buttons = {
-        "toggle_render_button": pygame.Rect(10, 10, 80, 20),
-        "export_weights_button": pygame.Rect(10, 35, 80, 20)
+        "toggle_render_button": pygame.Rect(10, 10, 85, 16),
+        "show_hitboxes_button": pygame.Rect(10, 30, 85, 16),
+        "export_weights_button": pygame.Rect(10, 50, 85, 16),
+        "import_training_data_button": pygame.Rect(10, 70, 85, 16)
     }
 
     # Define a few font classes
     pygame.font.init()
     fonts = {
         "scoreboard_font": pygame.font.Font(None, 20),
-        "model_toggle_font": pygame.font.Font(None, 14)
+        "model_toggle_font": pygame.font.Font(None, 13)
     }
     fonts["model_toggle_font"].set_bold(True)       # Let's make this font bold
 
@@ -137,28 +139,42 @@ class GameBackground:
     def draw_model_toggles(self, screen, model_toggles):
         """Draws the model toggles that you can clicck in AI Traiing to turn on / off rendering and speed up FPS"""
         
-        if model_toggles["Render"]: toggle_color = self.palette["LIGHT_GREEN"]
-        else: toggle_color = self.palette['LIGHT_RED']
+        if model_toggles["Render"]: render_toggle_color = self.palette["LIGHT_GREEN"]
+        else: render_toggle_color = self.palette['LIGHT_RED']
+        if model_toggles["ShowHitboxes"]: hitbox_toggle_color = self.palette["LIGHT_GREEN"]
+        else: hitbox_toggle_color = self.palette['LIGHT_RED']
 
         
-        render_text = "Render: ON" if model_toggles["Render"] else "Render: OFF"
-        render_text_font = self.fonts["model_toggle_font"].render(render_text, True, self.palette["BLACK"])
+        render_cond_text = "Render: ON" if model_toggles["Render"] else "Render: OFF"
+        show_hitboxes_cond_text = "Show Hitboxes: ON" if model_toggles["ShowHitboxes"] else "Show Hitboxes: OFF"
+        render_text = self.fonts["model_toggle_font"].render(render_cond_text, True, self.palette["BLACK"])
+        show_hitboxes_text = self.fonts["model_toggle_font"].render(show_hitboxes_cond_text, True, self.palette["BLACK"])
         export_weights_text = self.fonts["model_toggle_font"].render("Export Weights", True, self.palette["BLACK"])
+        import_training_data_text = self.fonts["model_toggle_font"].render("Import Train Data", True, self.palette["BLACK"])
 
         # Drawing the shadows
-        pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], (self.model_toggle_buttons["toggle_render_button"].x+2, self.model_toggle_buttons["toggle_render_button"].y+2, self.model_toggle_buttons["toggle_render_button"].width, self.model_toggle_buttons["toggle_render_button"].height))
-        pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], (self.model_toggle_buttons["export_weights_button"].x+2, self.model_toggle_buttons["export_weights_button"].y+2, self.model_toggle_buttons["export_weights_button"].width, self.model_toggle_buttons["export_weights_button"].height))
+        shadow_weight = 1
+        pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], (self.model_toggle_buttons["toggle_render_button"].x+shadow_weight, self.model_toggle_buttons["toggle_render_button"].y+shadow_weight, self.model_toggle_buttons["toggle_render_button"].width, self.model_toggle_buttons["toggle_render_button"].height))
+        pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], (self.model_toggle_buttons["show_hitboxes_button"].x+shadow_weight, self.model_toggle_buttons["show_hitboxes_button"].y+shadow_weight, self.model_toggle_buttons["show_hitboxes_button"].width, self.model_toggle_buttons["show_hitboxes_button"].height))
+        pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], (self.model_toggle_buttons["export_weights_button"].x+shadow_weight, self.model_toggle_buttons["export_weights_button"].y+shadow_weight, self.model_toggle_buttons["export_weights_button"].width, self.model_toggle_buttons["export_weights_button"].height))
+        pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], (self.model_toggle_buttons["import_training_data_button"].x+shadow_weight, self.model_toggle_buttons["import_training_data_button"].y+shadow_weight, self.model_toggle_buttons["import_training_data_button"].width, self.model_toggle_buttons["import_training_data_button"].height))
         
         # Drawing the buttons
-        pygame.draw.rect(screen, toggle_color, self.model_toggle_buttons["toggle_render_button"])
+        pygame.draw.rect(screen, render_toggle_color, self.model_toggle_buttons["toggle_render_button"])
+        pygame.draw.rect(screen, hitbox_toggle_color, self.model_toggle_buttons["show_hitboxes_button"])
         pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], self.model_toggle_buttons["export_weights_button"])
+        pygame.draw.rect(screen, self.palette["MEDIUM_GRAY"], self.model_toggle_buttons["import_training_data_button"])
 
         # Drawing the borders
         pygame.draw.rect(screen, self.palette["BLACK"], self.model_toggle_buttons["toggle_render_button"], 2)
+        pygame.draw.rect(screen, self.palette["BLACK"], self.model_toggle_buttons["show_hitboxes_button"], 2)
         pygame.draw.rect(screen, self.palette["BLACK"], self.model_toggle_buttons["export_weights_button"], 2)
+        pygame.draw.rect(screen, self.palette["BLACK"], self.model_toggle_buttons["import_training_data_button"], 2)
         
-        screen.blit(render_text_font, (13, 15))
-        screen.blit(export_weights_text, (13, 40))
+        screen.blit(render_text, (13, 14))
+        screen.blit(show_hitboxes_text, (13, 34))
+        screen.blit(export_weights_text, (13, 54))
+        screen.blit(import_training_data_text, (13, 74))
 
     
     def render_off(self, screen, model_toggles):

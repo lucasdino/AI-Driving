@@ -24,10 +24,10 @@ class DQN_Model:
     BATCH_SIZE = 512
     GAMMA = 0.99
     EPS_START = 0.9
-    EPS_END = 0.1
-    EPS_DECAY = 100000
-    TAU = 3e-3
-    LR = 1e-4
+    EPS_END = 0.2
+    EPS_DECAY = 1000000
+    TAU = 1e-2
+    LR = 3e-4
     N_OUTPUT_SIZE = 5
     M_STATE_SIZE = 15
     MEMORY_FRAMES = 10000
@@ -38,7 +38,9 @@ class DQN_Model:
     model_toggles = {
         "ClickEligible": True,
         "Render": True,
-        "SaveWeights": False
+        "ShowHitboxes": None,
+        "SaveWeights": False,
+        "ImportWeights": False
     }
 
     def __init__(self, gamesettings):
@@ -56,16 +58,16 @@ class DQN_Model:
         self.policy_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
         
         # If not training the model, can simply load existing parameters for run
-        if self.gamesettings['train_infer_toggle'] == 'INFER': self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-09.26.23-19.38'))
+        if self.gamesettings['train_infer_toggle'] == 'INFER': self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-14.13'))
         
         # If we want to be training our model, we need to create memory object, target_net, and other necessary var
         if self.gamesettings['train_infer_toggle'] == 'TRAIN': 
             self.target_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
             
             if self.IMPORT_WEIGHTS_FOR_TRAINING:
-                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.06.23-23.33'))
-                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.06.23-23.33'))
-                self.EPS_DECAY = self.EPS_DECAY / 10            # Reduce amount of random steps at beginning
+                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-14.35'))
+                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.07.23-14.35'))
+                self.EPS_DECAY = self.EPS_DECAY * 0.5            # Reduce amount of random steps at beginning
             else:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
 
@@ -92,6 +94,7 @@ class DQN_Model:
         """Simple setter function to pass through a racegame each time a new racegame instance is created"""
         self.racegame_session = racegame_session
         self.model_toggle_buttons = racegame_session.racegame.game_background.get_model_toggle_buttons()
+        self.model_toggles["ShowHitboxes"] = racegame_session.gamesettings["display_hitboxes"]
 
     
     def get_model_toggles(self):
@@ -215,6 +218,10 @@ class DQN_Model:
                     export_params_and_loss(self.loss_memory, self.policy_net, self.target_net)
                     self.memory.save_replay_memory(self.M_STATE_SIZE)
                     self.model_toggles["SaveWeights"] = False
+                
+                if self.model_toggles["ImportWeights"]:
+                    self.memory.load_replay_memory(self.device)
+                    self.model_toggles["ImportWeights"] = False
                 
                 if done:
                     self.progress_vars["CoinsSinceLastPrint"] += self.racegame_session.racegame.coins

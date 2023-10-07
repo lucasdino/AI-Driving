@@ -2,6 +2,7 @@ import random
 import os
 import csv
 import datetime
+import pandas as pd
 from collections import namedtuple, deque
 
 import torch
@@ -46,10 +47,20 @@ class ReplayMemory(object):
                 csv_writer.writerow(state_list + action_list + next_state_list + reward_list)
 
         
-    def load_replay_memory(self):
-        """Class to load replay memory from saved files"""
-        pass
+    def load_replay_memory(self, device):
+        """Class to load replay memory (created from manual playing) from saved files"""
+        df = pd.read_csv('./assets/replay_memory/import_training_data.csv')
 
+        for _, row in df.iterrows():
+            state = torch.tensor(row[:15].values.reshape(1, -1), dtype=torch.float32, device=device)
+            action = torch.tensor(row[15:20].values.reshape(1, -1), dtype=torch.float32, device=device)
+            next_state = torch.tensor(row[20:35].values.reshape(1, -1), dtype=torch.float32, device=device)
+            reward = torch.tensor(row[-1:].values.reshape(1), dtype=torch.float32, device=device)
+            self.memory.append((state, action, next_state, reward))
+        
+        print("Replay memory imported.")
+
+            
 
 class DQN(nn.Module):
     """Create instance of neural net"""
@@ -75,6 +86,6 @@ class DQN(nn.Module):
         filepath = os.path.join(directory, filename) 
         try:
             torch.save(self.state_dict(), filepath)
-            print("Model parameters exported successfully.")
+            print(f"Model parameters exported successfully to {filename}")
         except:
             print("Model parameters failed to export.")

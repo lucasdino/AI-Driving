@@ -93,8 +93,12 @@ def check_toggles(model_toggles, model_toggle_buttons):
                 model_toggles["ClickEligible"] = False
                 if model_toggle_buttons["toggle_render_button"].collidepoint(event.pos):
                     model_toggles["Render"] = not model_toggles["Render"]
+                if model_toggle_buttons["show_hitboxes_button"].collidepoint(event.pos):
+                    model_toggles["ShowHitboxes"] = not model_toggles["ShowHitboxes"]
                 if model_toggle_buttons["export_weights_button"].collidepoint(event.pos):
                     model_toggles["SaveWeights"] = True
+                if model_toggle_buttons["import_training_data_button"].collidepoint(event.pos):
+                    model_toggles["ImportWeights"] = True
             if (event.type == pygame.MOUSEBUTTONUP):
                 model_toggles["ClickEligible"] = True
     return model_toggles

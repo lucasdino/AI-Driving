@@ -21,7 +21,7 @@ gamesettings = {
     'train_infer_toggle': 'TRAIN',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
     'draw_toggle': False,                       # {'True', 'False'}
     'racetrack_reward_toggle': 'REWARD',        # {'RACETRACK', 'REWARD'} -> Only used if draw mode is set to 'True'
-    'display_hitboxes': True,                   # {'True', 'False'}
+    'display_hitboxes': False,                   # {'True', 'False'}
     'display_arrows': True,                     # {'True', 'False'}
     'random_coin_start': True                   # {'True', 'False'}
 }
