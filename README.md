@@ -1,9 +1,22 @@
 # AI-Driving
 
-Built a simple python game to achieve the following objectives:
-1. Reacquaint myself with python and engage in programming larger projects. Although the code is not polished (I did some refactoring), I would approach this project differently with my current knowledge. 😄
-2. Utilize a test environment to learn reinforcement learning.
+I documented this project on my [Notion](https://www.notion.so/Q-Learning-214e45ce19704294bd365308a77c68b4) in a bit more detail.
 
 ---
 
-I documented this project on my [Notion](https://www.notion.so/Q-Learning-214e45ce19704294bd365308a77c68b4), where I highlighted the results and key takeaways.
+Built a simple python game to achieve the following objectives:
+1. Reacquaint myself with python and engage in programming larger projects
+2. Train a car to drive on a track with some level of generalizability across unseen tracks
+
+---
+
+Learned a lot and got satisfactory results. Few highlights:
+1. The car could complete the course it was trained on reasonably often. On unseen maps that were of similar difficulty it performed well, on harder maps it did not 🫠
+    -   MORE ON THE NOTION...but there are several improvements I could make to it that I think would be low hanging fruit. Just need to move on from here
+2. After building the game I went through and optimized algorithms / processes to see a 3x improvement in FPS during training (from ~40 to ~120 FPS)
+3. Refactored the code into a state that I'm proud of. Again, few changes I see that are clear and if I built it from scratch again I would approach differently in areas
+
+---
+
+Few Gifs!
+
