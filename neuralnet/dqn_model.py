@@ -25,9 +25,9 @@ class DQN_Model:
     GAMMA = 0.99
     EPS_START = 0.9
     EPS_END = 0.2
-    EPS_DECAY = 250000
-    TAU = 1e-2
-    LR = 3e-4
+    EPS_DECAY = 1000000
+    TAU = 1e-4
+    LR = 1e-6
     N_OUTPUT_SIZE = 5
     M_STATE_SIZE = 15
     MEMORY_FRAMES = 10000
@@ -58,15 +58,15 @@ class DQN_Model:
         self.policy_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
         
         # If not training the model, can simply load existing parameters for run
-        if self.gamesettings['train_infer_toggle'] == 'INFER': self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-17.56'))
+        if self.gamesettings['train_infer_toggle'] == 'INFER': self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-21.42'))
         
         # If we want to be training our model, we need to create memory object, target_net, and other necessary var
         if self.gamesettings['train_infer_toggle'] == 'TRAIN': 
             self.target_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
             
             if self.IMPORT_WEIGHTS_FOR_TRAINING:
-                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-17.56'))
-                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.07.23-17.56'))
+                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-21.42'))
+                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.07.23-21.42'))
                 self.EPS_DECAY = self.EPS_DECAY            # Reduce amount of random steps at beginning
             else:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -105,7 +105,7 @@ class DQN_Model:
     def run_model_inference(self, state):
         """Method that leverages the fully trained NN; takes in a state and returns an array for the possible action"""
         # Find index of max Q-value from the trained neural net - then return an array of all zeros except for that max value, which is a 1 (desired action)\
-        if np.random.random() < self.EPS_END: return random_action_motion(self.N_OUTPUT_SIZE, self.last_action)
+        if np.random.random() < (self.EPS_END*1): return random_action_motion(self.N_OUTPUT_SIZE, self.last_action)
         else:
             with torch.no_grad():
                 state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)

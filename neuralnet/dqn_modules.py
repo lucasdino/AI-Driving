@@ -49,7 +49,7 @@ class ReplayMemory(object):
         
     def load_replay_memory(self, device):
         """Class to load replay memory (created from manual playing) from saved files"""
-        df = pd.read_csv('./assets/replay_memory/import_training_data.csv')
+        df = pd.read_csv('./assets/replay_memory/import_training_data1.csv')
 
         for _, row in df.iterrows():
             state = torch.tensor(row[:15].values.reshape(1, -1), dtype=torch.float32, device=device)

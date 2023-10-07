@@ -27,7 +27,7 @@ google_maps_track_assets_dict = {
     "Background": "GoogleMapsTrack.jpeg",
     "Background_Scaler": 1,                 
     "Racecar": "Original_RacecarSprite.png",
-    "Scale_Racecar": 0.08,
+    "Scale_Racecar": 0.06,
     "Coin": "MarioCoin.png",
     "Scale_Coin": 0.012,
     "RacetrackLines": "googlemapstrack_lines.csv",

@@ -14,8 +14,8 @@ class RaceGame:
     _DRAG = 0.9
 
     # Other metavariables
-    _LAPS = 3
-    _TIMELIMIT = _LAPS * 10
+    _LAPS = 2
+    _TIMELIMIT = _LAPS * 20
     _TRAINING_RENDER_TOGGLE = False
     _CLICKELIGIBILITY_MANUALOVERRIDE = True
 
