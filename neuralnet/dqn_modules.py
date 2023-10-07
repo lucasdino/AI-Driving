@@ -30,7 +30,7 @@ class ReplayMemory(object):
     def save_replay_memory(self, state_size):
         """Method to save replay memory so that it can be loaded into a training run"""
         formatted_datetime = datetime.datetime.now().strftime("%m.%d.%y-%H.%M")
-        with open(f'assets/loss_results/replay_memory-{formatted_datetime}.csv', "w", newline="") as csvfile:
+        with open(f'assets/replay_memory/replay_memory-{formatted_datetime}.csv', "w", newline="") as csvfile:
             csv_writer = csv.writer(csvfile)
             for memory in self.memory:
                 # Unpack the namedtuple into its components

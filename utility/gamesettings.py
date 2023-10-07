@@ -15,8 +15,8 @@
 
 
 gamesettings = {
-    'screensize': (800, 600),                   
-    'grid_dims':  (6, 8),                       
+    'screensize': None,                         # To be filled in when loading game map                   
+    'grid_dims':  None,                         # To be filled in when loading map
     'human_ai_toggle': 'AI',                 # {'AI', 'HUMAN'}
     'train_infer_toggle': 'TRAIN',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
     'draw_toggle': False,                       # {'True', 'False'}

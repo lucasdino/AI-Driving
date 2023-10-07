@@ -43,7 +43,7 @@ class GameBackground:
 
     def _init_scoreboard_bg(self):
         """Create semi-transparent background for scoreboard"""
-        self.scoreboard_bg = pygame.Surface((200, 60))
+        self.scoreboard_bg = pygame.Surface((250, 60))
         self.scoreboard_bg.fill((0, 0, 0))
         self.scoreboard_bg.set_alpha(150)
 
@@ -81,13 +81,13 @@ class GameBackground:
         screen.blit(self.racetrack_background, (0,0))
         
         temp_scoreboard = self.scoreboard_bg.copy()
-        score_time_text = self.fonts["scoreboard_font"].render(f"Time: {time}s        Score: {score:.0f}", True, self.palette["WHITE"])
-        attempt_wins_text = self.fonts["scoreboard_font"].render(f"Attempt: {session_metadata['attempts']}     Wins: {session_metadata['wins']}", True, self.palette["WHITE"])
+        score_time_text = self.fonts["scoreboard_font"].render(f"Time: {time}s    FPS: {frame_rate}    Score: {score:.0f}", True, self.palette["WHITE"])
+        attempt_wins_text = self.fonts["scoreboard_font"].render(f"Attempt: {session_metadata['attempts']}    Wins: {session_metadata['wins']}", True, self.palette["WHITE"])
         FPS_attempt_text = self.fonts["scoreboard_font"].render(f"FPS: {frame_rate}     Attempt: {session_metadata['attempts']}", True, self.palette["WHITE"])
         temp_scoreboard.blit(score_time_text, (10, 10))
-        temp_scoreboard.blit(FPS_attempt_text, (10, 35))
+        temp_scoreboard.blit(attempt_wins_text, (10, 35))
         
-        screen.blit(temp_scoreboard, (self.width - 210, 10))
+        screen.blit(temp_scoreboard, (self.width - 260, 10))
 
 
     def draw_key_status(self, screen, keypress, ai_running=False):

@@ -5,21 +5,37 @@ import csv
 import rtree
 import shapely.geometry as geom
 import numpy as np
+    
+
+def get_background_scale(assets_dict):
+    """Class initially called in the session initializer to get the scale of the map so we can instantiate our pygame screen"""
+    path = os.path.join("assets/graphics", assets_dict["Background"])
+    sprite = pygame.image.load(path)
+    h, w = sprite.get_height(), sprite.get_width()
+    max_dim = max(h, w)
+    bg_scaler = (max_dim/800)
+    if max_dim > 800:
+        h = h / bg_scaler
+        w = w / bg_scaler
+    screensize = (w, h)
+    grid_dims = (h//100, w//100)
+    return screensize, grid_dims, bg_scaler
 
 
-def load_session_assets(gamesettings):
+def load_session_assets(assets_dict, gamesettings):
     """
     Loads in all assets that will persist across games in the session
     Returns dictionary of assets
     """
+
     assets = {
-        "GameBackground": _load_sprite("RacetrackSprite", False),
-        "RacecarSprite": _shrink_sprite(_load_sprite("RacecarSprite"), 0.15),
+        "GameBackground": _shrink_sprite(_load_sprite(assets_dict["Background"], with_alpha=False), scale=assets_dict["Background_Scaler"]),
+        "RacecarSprite": _shrink_sprite(_load_sprite(assets_dict["Racecar"]), scale=0.15),
         "RacecarCorners": None,
-        "CoinSprite": _shrink_sprite(_load_sprite("MarioCoin"), 0.02),
+        "CoinSprite": _shrink_sprite(_load_sprite(assets_dict["Coin"]), scale=0.02),
         "CoinRadius": None, 
-        "RacetrackLines": _load_lines_from_csv(),
-        "RewardLocations": _load_rewards_from_csv(),
+        "RacetrackLines": _load_lines_from_csv(assets_dict["RacetrackLines"]),
+        "RewardLocations": _load_rewards_from_csv(assets_dict["RewardLocations"]),
         "RacetrackLines_GridMap": None,
         "GridMap_RTree": None,
         "GridMap_Boxes": None
@@ -38,12 +54,12 @@ def load_session_assets(gamesettings):
 
 def _load_sprite(name, with_alpha=True):
     """Loads in the sprite from the assets folder."""
-    path = os.path.join("assets/graphics", f"{name}.png")
+    path = os.path.join("assets/graphics", name)
     loaded_sprite = pygame.image.load(path)
     return loaded_sprite.convert_alpha() if with_alpha else loaded_sprite.convert()
 
 
-def _shrink_sprite(sprite, scale):
+def _shrink_sprite(sprite, scale=1):
     """Scales down the sprite."""
     return pygame.transform.scale(sprite, tuple(int(dim * scale) for dim in (sprite.get_width(), sprite.get_height())))
 
@@ -69,10 +85,10 @@ def _get_coin_radius(sprite):
     return max(sprite.get_rect().width, sprite.get_rect().height)/2
 
     
-def _load_lines_from_csv():
+def _load_lines_from_csv(filename):
     """Loads race track lines from a CSV file."""
     lines = []
-    filename = os.path.join("assets/track", "drawn_racetrack-06.05.23-01.10.csv")
+    filename = os.path.join("assets/track", filename)
     with open(filename, "r", newline="") as csvfile:
         csv_reader = csv.reader(csvfile)
         for row in csv_reader:
@@ -81,10 +97,10 @@ def _load_lines_from_csv():
     return lines
 
 
-def _load_rewards_from_csv():
+def _load_rewards_from_csv(filename):
     """Loads rewards from a CSV file."""
     rewards = []
-    filename = os.path.join("assets/track", "drawn_reward-06.05.23-01.32.csv")
+    filename = os.path.join("assets/track", filename)
     with open(filename, "r", newline="") as csvfile:
         csv_reader = csv.reader(csvfile)
         for row in csv_reader:

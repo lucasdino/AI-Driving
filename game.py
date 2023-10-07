@@ -14,8 +14,8 @@ class RaceGame:
     _DRAG = 0.9
 
     # Other metavariables
-    _LAPS = 2
-    _TIMELIMIT = _LAPS * 20
+    _LAPS = 3
+    _TIMELIMIT = _LAPS * 10
     _TRAINING_RENDER_TOGGLE = False
     _CLICKELIGIBILITY_MANUALOVERRIDE = True
 
@@ -158,18 +158,12 @@ class RaceGame:
         self.reward_change = 0
 
         # Define reward function variables
-        FacingCoin_Reward = 1
-        VelocityToCoin_Reward = 3
         Coin_Reward = 2000
-
-        DistanceToCoin_Penalty = 10
-        PixelsToWall_PenaltyThreshold = 10
-        ProximityToWall_Multiplier = 2
-        LackOfMotion_Penalty = 2
-        NoMotion_Penalty = 3
-        BehaviorChange_Penalty = 3
-        BehaviorKeep_Reward = 1
         Crash_Penalty = 2000
+
+        VelocityToCoin_Reward = 3
+        LackOfMotion_Penalty = 2
+        BehaviorKeep_Reward = 1
 
         # Check for collisions with the walls
         for line in self.racetrack.lines:
@@ -186,13 +180,6 @@ class RaceGame:
             self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 10)
             self.reward_change -= min(max(LackOfMotion_Penalty - self.racecar.modelinputs['velocity_to_reward'], 0), LackOfMotion_Penalty)
             self.reward_change += BehaviorKeep_Reward if ((self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) and (self.racecar_previous_action != 4)) else 0
-            # self.reward_change -= NoMotion_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
-            # self.reward_change -= LackOfMotion_Multiplier_Penalty*max(1-(abs(self.racecar.velocity[0,0])+abs(self.racecar.velocity[0,1])), 0)
-            # self.reward_change -= max(0, PixelsToWall_PenaltyThreshold-min(self.racecar.modelinputs['vision_distances']))*ProximityToWall_Multiplier
-            # self.rewardchange -= BehaviorChange_Penalty if not(self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) else 0
-            # self.rewardchange += BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 1 else 0
-            # self.rewardchange -= BehaviorChange_Penalty/2 if (self.racecar.modelinputs['last_action_index'] == 0 or self.racecar.modelinputs['last_action_index'] == 2) else 0
-            # self.rewardchange -= BehaviorChange_Penalty if self.racecar.modelinputs['last_action_index'] == 4 else 0
 
         # Check for collisions with the coins; if so add to score / reward function
         if self.rewardcoin.intersect_with_reward(self.racecar.modelinputs['distance_to_reward']):

@@ -1,16 +1,19 @@
 import pygame
 from game import RaceGame
-from utility.sessionassets import load_session_assets
+from utility.sessionassets import get_background_scale, load_session_assets
+from utility.assets_dicts import *
 
 
 class Racegame_Session:
     """Parent class that keeps track of meta variables for the racegame and allows for neural net training"""
 
     def __init__(self, gamesettings, session_metadata):
-        self.gamesettings = gamesettings
         self.session_metadata = session_metadata
+        self.assets_dict = OGmap_assets_dict
+        self.gamesettings = gamesettings
+        self.gamesettings["screensize"], self.gamesettings['grid_dims'], self.assets_dict["Background_Scaler"] = get_background_scale(self.assets_dict)
         self._initialize_pygame()
-        self.session_assets = load_session_assets(self.gamesettings)
+        self.session_assets = load_session_assets(self.assets_dict, gamesettings)
         self.racegame, self.nn_model = None, None
         
     def _initialize_pygame(self):

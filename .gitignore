@@ -3,3 +3,4 @@ __pycache__/
 assets/loss_results
 assets/nn_params
 assets/replay_memory
+.ipynb_checkpoints
