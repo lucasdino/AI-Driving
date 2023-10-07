@@ -16,7 +16,7 @@ class Drawing:
     def draw_rt_lines(self, screen):
         """Draws the racetrack lines on the screen."""
         for line in self._lines:
-            pygame.draw.line(screen, (255, 165, 0), line[0], line[1], 2)
+            pygame.draw.line(screen, (255, 0, 0), line[0], line[1], 2)
 
     def draw_rewards(self, rewardcoin, screen):
         """Draws the rewards on the screen."""

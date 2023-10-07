@@ -9,11 +9,11 @@ class Racegame_Session:
 
     def __init__(self, gamesettings, session_metadata):
         self.session_metadata = session_metadata
-        self.assets_dict = OGmap_assets_dict
+        self.assets_dict = OGmap_assets_dict             # {OGmap_assets_dict, cartoon_rt_assets_dict, google_maps_track_assets_dict, underwater_dalle_assets_dict}
         self.gamesettings = gamesettings
         self.gamesettings["screensize"], self.gamesettings['grid_dims'], self.assets_dict["Background_Scaler"] = get_background_scale(self.assets_dict)
         self._initialize_pygame()
-        self.session_assets = load_session_assets(self.assets_dict, gamesettings)
+        self.session_assets = load_session_assets(self.assets_dict, self.gamesettings)
         self.racegame, self.nn_model = None, None
         
     def _initialize_pygame(self):

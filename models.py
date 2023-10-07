@@ -91,7 +91,7 @@ class Racecar:
         self.velocity = self.velocity + np.array([[dx, -dy]])
 
 
-    def brake(self, deceleration):
+    def reverse(self, deceleration):
         """Applies a braking force to the racecar based on the provided deceleration."""
         dx = deceleration * np.cos(self.angle)
         dy = deceleration * np.sin(self.angle)

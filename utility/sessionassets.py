@@ -13,12 +13,11 @@ def get_background_scale(assets_dict):
     sprite = pygame.image.load(path)
     h, w = sprite.get_height(), sprite.get_width()
     max_dim = max(h, w)
-    bg_scaler = (max_dim/800)
-    if max_dim > 800:
-        h = h / bg_scaler
-        w = w / bg_scaler
+    bg_scaler = 1/(max_dim/800)
+    h = h * bg_scaler
+    w = w * bg_scaler
     screensize = (w, h)
-    grid_dims = (h//100, w//100)
+    grid_dims = (int(h//100), int(w//100))
     return screensize, grid_dims, bg_scaler
 
 
@@ -29,10 +28,10 @@ def load_session_assets(assets_dict, gamesettings):
     """
 
     assets = {
-        "GameBackground": _shrink_sprite(_load_sprite(assets_dict["Background"], with_alpha=False), scale=assets_dict["Background_Scaler"]),
-        "RacecarSprite": _shrink_sprite(_load_sprite(assets_dict["Racecar"]), scale=0.15),
+        "GameBackground": _scale_sprite(_load_sprite(assets_dict["Background"], with_alpha=False), scale=assets_dict["Background_Scaler"]),
+        "RacecarSprite": _scale_sprite(_load_sprite(assets_dict["Racecar"]), scale=assets_dict["Scale_Racecar"]),
         "RacecarCorners": None,
-        "CoinSprite": _shrink_sprite(_load_sprite(assets_dict["Coin"]), scale=0.02),
+        "CoinSprite": _scale_sprite(_load_sprite(assets_dict["Coin"]), scale=assets_dict["Scale_Coin"]),
         "CoinRadius": None, 
         "RacetrackLines": _load_lines_from_csv(assets_dict["RacetrackLines"]),
         "RewardLocations": _load_rewards_from_csv(assets_dict["RewardLocations"]),
@@ -59,7 +58,7 @@ def _load_sprite(name, with_alpha=True):
     return loaded_sprite.convert_alpha() if with_alpha else loaded_sprite.convert()
 
 
-def _shrink_sprite(sprite, scale=1):
+def _scale_sprite(sprite, scale=1):
     """Scales down the sprite."""
     return pygame.transform.scale(sprite, tuple(int(dim * scale) for dim in (sprite.get_width(), sprite.get_height())))
 

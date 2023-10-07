@@ -48,6 +48,7 @@ class RaceGame:
 
         # Create instance of drawing class if toggled on
         self.drawing_module = Drawing() if self.gamesettings['draw_toggle'] else None
+        if self.gamesettings['draw_toggle']: self._TIMELIMIT = 1000
 
         # Stores instance of DQN model that was passed through if set to 'AI' and calculates first instance of the racecar's state
         self.model = model
@@ -166,6 +167,7 @@ class RaceGame:
         VelocityToCoin_Reward = 3
         LackOfMotion_Penalty = 2
         BehaviorKeep_Reward = 1
+        BehaviorChange_Penalty = 2
 
         # Check for collisions with the walls
         neighboring_lines = get_neighbor_lines(self.session_assets, self.gamesettings["grid_dims"], (self.racecar.position[0,0], self.racecar.position[0,1]))
@@ -183,6 +185,7 @@ class RaceGame:
             self.reward_change += min((self.racecar.modelinputs['velocity_to_reward'] * VelocityToCoin_Reward), 10)
             self.reward_change -= min(max(LackOfMotion_Penalty - self.racecar.modelinputs['velocity_to_reward'], 0), LackOfMotion_Penalty)
             self.reward_change += BehaviorKeep_Reward if ((self.racecar_previous_action == self.racecar.modelinputs['last_action_index']) and (self.racecar_previous_action != 4)) else 0
+            self.reward_change -= BehaviorChange_Penalty if (self.racecar_previous_action != self.racecar.modelinputs['last_action_index']) else 0
 
         # Check for collisions with the coins; if so add to score / reward function
         if self.rewardcoin.intersect_with_reward(self.racecar.modelinputs['distance_to_reward']):

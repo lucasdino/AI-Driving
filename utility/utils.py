@@ -88,7 +88,7 @@ def action_to_motion(racecar, action, acceleration, turn_speed, ai_running=False
     if action[2]:
         racecar.turn_right(turn_speed)
     if action[3]:
-        racecar.brake(acceleration)
+        racecar.reverse(acceleration/2)
     if action[4]:
         pass    # Do nothing
 
@@ -101,10 +101,10 @@ def action_to_motion(racecar, action, acceleration, turn_speed, ai_running=False
             racecar.accelerate(acceleration)
             racecar.turn_right(turn_speed)
         if action[7]:
-            racecar.brake(acceleration)
+            racecar.reverse(acceleration/2)
             racecar.turn_left(turn_speed)
         if action[8]:
-            racecar.brake(acceleration)
+            racecar.reverse(acceleration/2)
             racecar.turn_right(turn_speed)
 
 
