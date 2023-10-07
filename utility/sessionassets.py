@@ -17,7 +17,7 @@ def get_background_scale(assets_dict):
     h = h * bg_scaler
     w = w * bg_scaler
     screensize = (w, h)
-    grid_dims = (int(h//100), int(w//100))
+    grid_dims = (int(h//140), int(w//140))
     return screensize, grid_dims, bg_scaler
 
 

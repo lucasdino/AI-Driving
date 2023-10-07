@@ -78,10 +78,12 @@ class GameBackground:
         return self.model_toggle_buttons
 
 
-    def draw_scoreboard(self, screen, time, score, frame_rate, session_metadata):
-        """Render background and scoreboard"""
+    def draw_background(self, screen):
         screen.blit(self.racetrack_background, (0,0))
-        
+
+
+    def draw_scoreboard(self, screen, time, score, frame_rate, session_metadata):
+        """Render scoreboard"""
         temp_scoreboard = self.scoreboard_bg.copy()
         score_time_text = self.fonts["scoreboard_font"].render(f"Time: {time}s    FPS: {frame_rate}    Score: {score:.0f}", True, self.palette["WHITE"])
         attempt_wins_text = self.fonts["scoreboard_font"].render(f"Attempt: {session_metadata['attempts']}    Wins: {session_metadata['wins']}", True, self.palette["WHITE"])

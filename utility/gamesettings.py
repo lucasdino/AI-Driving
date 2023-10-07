@@ -1,4 +1,5 @@
 # File with the meta-settings for the game to run - defined here and imported into necessary modules for ease / organization
+from utility.assets_dicts import *
 
 # ------------------------------------------
 # Additional information about game settings
@@ -12,18 +13,20 @@
 # display_hitboxes - Toggle to turn on displaying hitboxes or not
 # display_arrows - Toggle to turn on the arrow key displays
 # random_coin_start - Toggle to have car start at random coin location to begin or to start at starting line
+# gamemap - Choose which gamemap to have the car drive on
 
 
 gamesettings = {
     'screensize': None,                         # To be filled in when loading game map                   
     'grid_dims':  None,                         # To be filled in when loading map
     'human_ai_toggle': 'AI',                 # {'AI', 'HUMAN'}
-    'train_infer_toggle': 'TRAIN',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
+    'train_infer_toggle': 'INFER',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
     'draw_toggle': False,                       # {'True', 'False'}
     'racetrack_reward_toggle': 'REWARD',        # {'RACETRACK', 'REWARD'} -> Only used if draw mode is set to 'True'
     'display_hitboxes': True,                   # {'True', 'False'}
     'display_arrows': True,                     # {'True', 'False'}
-    'random_coin_start': True                   # {'True', 'False'}
+    'random_coin_start': True,                  # {'True', 'False'}
+    'gamemap': underwater_dalle_assets_dict     # {OGmap_assets_dict, cartoon_rt_assets_dict, google_maps_track_assets_dict, underwater_dalle_assets_dict}
 }
 
 

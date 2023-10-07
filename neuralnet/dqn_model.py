@@ -26,8 +26,8 @@ class DQN_Model:
     EPS_START = 0.9
     EPS_END = 0.2
     EPS_DECAY = 1000000
-    TAU = 1e-4
-    LR = 1e-6
+    TAU = 1e-3
+    LR = 1e-5
     N_OUTPUT_SIZE = 5
     M_STATE_SIZE = 15
     MEMORY_FRAMES = 10000
@@ -58,15 +58,15 @@ class DQN_Model:
         self.policy_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
         
         # If not training the model, can simply load existing parameters for run
-        if self.gamesettings['train_infer_toggle'] == 'INFER': self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-21.42'))
+        if self.gamesettings['train_infer_toggle'] == 'INFER': self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-BestTrain'))
         
         # If we want to be training our model, we need to create memory object, target_net, and other necessary var
         if self.gamesettings['train_infer_toggle'] == 'TRAIN': 
             self.target_net = DQN(self.M_STATE_SIZE, self.N_OUTPUT_SIZE).to(self.device)
             
             if self.IMPORT_WEIGHTS_FOR_TRAINING:
-                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-10.07.23-21.42'))
-                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-10.07.23-21.42'))
+                self.policy_net.load_state_dict(torch.load('./assets/nn_params/Policy_Net_Params-BestTrain'))
+                self.target_net.load_state_dict(torch.load('./assets/nn_params/Target_Net_Params-BestTrain'))
                 self.EPS_DECAY = self.EPS_DECAY            # Reduce amount of random steps at beginning
             else:
                 self.target_net.load_state_dict(self.policy_net.state_dict())

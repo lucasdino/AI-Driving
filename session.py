@@ -1,7 +1,6 @@
 import pygame
 from game import RaceGame
 from utility.sessionassets import get_background_scale, load_session_assets
-from utility.assets_dicts import *
 
 
 class Racegame_Session:
@@ -9,7 +8,7 @@ class Racegame_Session:
 
     def __init__(self, gamesettings, session_metadata):
         self.session_metadata = session_metadata
-        self.assets_dict = google_maps_track_assets_dict             # {OGmap_assets_dict, cartoon_rt_assets_dict, google_maps_track_assets_dict, underwater_dalle_assets_dict}
+        self.assets_dict = gamesettings['gamemap']             
         self.gamesettings = gamesettings
         self.gamesettings["screensize"], self.gamesettings['grid_dims'], self.assets_dict["Background_Scaler"] = get_background_scale(self.assets_dict)
         self._initialize_pygame()

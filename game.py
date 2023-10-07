@@ -15,8 +15,7 @@ class RaceGame:
 
     # Other metavariables
     _LAPS = 2
-    _TIMELIMIT = _LAPS * 20
-    _TRAINING_RENDER_TOGGLE = False
+    _TIMELIMIT = _LAPS * 10
     _CLICKELIGIBILITY_MANUALOVERRIDE = True
 
     def __init__(self, screen, gamesettings, model, session_metadata, session_assets):
@@ -222,13 +221,15 @@ class RaceGame:
         frame_rate = int(self.clock.get_fps())
         elapsed_time = (pygame.time.get_ticks() - self.start_time) // 1000
 
-        # Draw the background and the racecar
-        self.game_background.draw_scoreboard(self.screen, elapsed_time, self.cumulative_reward, frame_rate, self.session_metadata)
-        self.racecar.draw(self.screen, self.gamesettings['display_hitboxes'])
-        
+        self.game_background.draw_background(self.screen)
+
         # Draw reward coins and racetrack lines (depending on if toggled / if drawing them), resp.
         if not self.gamesettings['draw_toggle'] or self.gamesettings['racetrack_reward_toggle'] == "REWARD": self.racetrack.draw(self.screen, self.gamesettings['display_hitboxes'])
         if not self.gamesettings['draw_toggle'] or self.gamesettings['racetrack_reward_toggle'] == "RACETRACK": self.rewardcoin.draw(self.screen, self.gamesettings['display_hitboxes'])
+        
+        # Draw the background and the racecar
+        self.game_background.draw_scoreboard(self.screen, elapsed_time, self.cumulative_reward, frame_rate, self.session_metadata)
+        self.racecar.draw(self.screen, self.gamesettings['display_hitboxes'])
         
         # Draw display arrows (if toggled to show them) and draw the neural net training toggles
         if self.gamesettings['display_arrows']: self.game_background.draw_key_status(self.screen, self.frame_action, True if self.gamesettings['human_ai_toggle'] == "AI" else False)
