@@ -144,8 +144,7 @@ class Racecar:
         """
         # Manually coding in the different vision lines - this creates more frequent lines at the front of the car and less frequent lines at the side / back. In rads
         # vision_line_angles = [0, np.pi/3, np.pi/2, (2*np.pi)/3, np.pi, (4*np.pi)/3, (3*np.pi)/2, (5*np.pi)/3]
-        vision_line_angles = [0, np.pi/3, (2*np.pi)/3, np.pi, (4*np.pi)/3, (5*np.pi)/3]
-        # vision_line_angles = [0, pi/2, pi, (3*pi)/2]
+        vision_line_angles = [0, np.pi/3, np.pi/2, (2*np.pi)/3, np.pi, (4*np.pi)/3, (5*np.pi)/3]
 
         center = (self.position[0,0], self.position[0,1])
         self.vision_lines = []
