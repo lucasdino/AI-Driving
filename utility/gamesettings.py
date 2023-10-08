@@ -20,13 +20,13 @@ gamesettings = {
     'screensize': None,                         # To be filled in when loading game map                   
     'grid_dims':  None,                         # To be filled in when loading map
     'human_ai_toggle': 'AI',                 # {'AI', 'HUMAN'}
-    'train_infer_toggle': 'INFER',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
+    'train_infer_toggle': 'TRAIN',              # {'TRAIN', 'INFER'} -> Only used if 'human_ai_toggle' = 'AI'
     'draw_toggle': False,                       # {'True', 'False'}
     'racetrack_reward_toggle': 'REWARD',        # {'RACETRACK', 'REWARD'} -> Only used if draw mode is set to 'True'
     'display_hitboxes': True,                   # {'True', 'False'}
     'display_arrows': True,                     # {'True', 'False'}
     'random_coin_start': True,                  # {'True', 'False'}
-    'gamemap': underwater_dalle_assets_dict     # {OGmap_assets_dict, cartoon_rt_assets_dict, google_maps_track_assets_dict, underwater_dalle_assets_dict}
+    'gamemap': OGmap_assets_dict     # {OGmap_assets_dict, cartoon_rt_assets_dict, google_maps_track_assets_dict, underwater_dalle_assets_dict}
 }
 
 

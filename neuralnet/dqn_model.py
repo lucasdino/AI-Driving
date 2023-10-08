@@ -21,13 +21,13 @@ class DQN_Model:
     # N_ACTIONS is the number of possible actions from the game (n=9: Nothing, Up, Left, Right, Down, Up-Left, Up-Right, Down-Left, Down-Right)
     # N_OBSERVATIONS is the number of env vars being passed through. (n=11: 8 'vision lines', racecar_angle, angle_to_reward, dist_to_reward)
     
-    BATCH_SIZE = 512
+    BATCH_SIZE = 32
     GAMMA = 0.99
     EPS_START = 0.9
     EPS_END = 0.2
     EPS_DECAY = 1000000
-    TAU = 1e-3
-    LR = 1e-5
+    TAU = 3e-3
+    LR = 3e-4
     N_OUTPUT_SIZE = 5
     M_STATE_SIZE = 15
     MEMORY_FRAMES = 10000
