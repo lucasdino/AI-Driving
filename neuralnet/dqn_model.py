@@ -27,7 +27,7 @@ class DQN_Model:
     EPS_END = 0.2
     EPS_DECAY = 1000000
     TAU = 3e-4
-    LR = 3e-5
+    LR = 3e-4
     N_OUTPUT_SIZE = 5
     M_STATE_SIZE = 16
     MEMORY_FRAMES = 10000

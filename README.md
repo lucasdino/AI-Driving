@@ -1,5 +1,6 @@
 # AI-Driving
 
+## About the Project
 I documented this project on my [Notion](https://www.notion.so/Q-Learning-214e45ce19704294bd365308a77c68b4) in a bit more detail.
 
 ---
@@ -23,3 +24,15 @@ Few Gifs!
 ![Trained model running on unseen, similar but slightly more difficult track](https://github.com/lucasdino/AI-Driving/blob/main/gifs/HardCartoonTrack.gif)
 ![Trained model running on harder Google Maps track](https://github.com/lucasdino/AI-Driving/blob/main/gifs/GoogleMapsTrack.gif)
 ![Trained model not doing so hot on DALLE Generated difficult track](https://github.com/lucasdino/AI-Driving/blob/main/gifs/DALLEUnderwaterTrack.gif)
+
+## Setup Instructions
+
+### Creating the Environment
+To set up the project environment, run the following command in the project directory (where `environment.yml` is located):
+
+```bash
+conda env create -f environment.yml
+```
+
+### Updating Settings
+The settings are currently set such that you run the trained model. If you want to train your own model or play as a human, update these settings in `/utility/gamesettings.py`. Update these settings to change the map, draw your own lines, or train a model. 
